@@ -1,5 +1,5 @@
 AI-Based Cognitive Gaming & Personal Memory Assistance Platform for Elderly Dementia Patients in NER
-👴 Patient-Side Features — Priority Order
+1. 👴 Patient-Side Features — Priority Order/n
 🧠 Personal Memory Vault – Patients can record their life experiences, memories and stories through voice, with photos, people, places and events linked to each memory.
 🧩 Memory Reconstruction Engine – Breaks personal memories into interconnected elements and uses progressive, voice-based recall prompts to help patients reconstruct and engage with their own life stories.
 🎙️ Voice-First AI Companion – The entire patient-side platform can be operated primarily through natural voice commands instead of complicated menus or typing.
