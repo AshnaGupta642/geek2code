@@ -10,7 +10,12 @@ from app.schemas.memory import (
     MemoryUpdate,
     MemoryResponse
 )
-from app.core.dependencies import get_current_user
+from app.core.dependencies import (
+    get_current_user,
+    get_current_caregiver
+)
+
+from app.models.family_member import FamilyMember
 
 
 router = APIRouter(
@@ -239,3 +244,32 @@ def delete_memory(
         "success": True,
         "message": "Memory deleted successfully"
     }
+# =========================================================
+# CAREGIVER GET PATIENT MEMORIES
+# =========================================================
+
+@router.get(
+    "/caregiver/{patient_id}",
+    response_model=list[MemoryResponse]
+)
+def caregiver_get_memories(
+    patient_id: int,
+    caregiver: FamilyMember = Depends(get_current_caregiver),
+    db: Session = Depends(get_db)
+):
+
+    # Make sure caregiver belongs to this patient
+    if caregiver.patient_id != patient_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to view this patient's memories"
+        )
+
+    memories = (
+        db.query(Memory)
+        .filter(Memory.patient_id == patient_id)
+        .order_by(Memory.created_at.desc())
+        .all()
+    )
+
+    return memories
