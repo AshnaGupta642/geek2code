@@ -38,6 +38,14 @@ from app.api import voice_recordings
 from app.api.audio_upload import router as audio_upload_router
 from app.api.device_tokens import router as device_token_router
 from app.api.notifications import router as notifications_router
+from app.api.ai_voice import router as ai_voice_router
+from app.api.memory_reconstruction import router as memory_reconstruction_router
+from app.api.memory_graph import router as memory_graph_router
+from app.models.face_profile import FaceProfile
+from app.api.face_recognition import router as face_recognition_router
+from app.api.orientation import router as orientation_router
+from app.api.personal_memory import router as personal_memory_router
+from app.api.personalized_voice import router as personalized_voice_router
 
 
 # Create database tables
@@ -95,6 +103,14 @@ app.include_router(voice_recordings.router)
 app.include_router(audio_upload_router)
 app.include_router(device_token_router)
 app.include_router(notifications_router)
+app.include_router(ai_voice_router)
+app.include_router(memory_reconstruction_router)
+app.include_router(memory_graph_router)
+app.include_router(face_recognition_router)
+app.include_router(orientation_router)
+app.include_router(personal_memory_router)
+app.include_router(personalized_voice_router)
+
 
 
 # Home endpoint

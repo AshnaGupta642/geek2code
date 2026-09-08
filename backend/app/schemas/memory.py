@@ -98,3 +98,43 @@ class MemoryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+class PersonalMemoryVaultRequest(BaseModel):
+    patient_id: int = Field(gt=0)
+    memory_id: int = Field(gt=0)
+    title: str = Field(min_length=1, max_length=200)
+    story_text: str | None = None
+    voice_recording_url: str | None = Field(
+        default=None,
+        max_length=500
+    )
+    photo_urls: list[str] = Field(default_factory=list)
+
+
+class PersonalMemoryVaultResponse(BaseModel):
+    memory_id: int
+
+    people: list[dict[str, str]] = Field(
+        default_factory=list
+    )
+
+    places: list[str] = Field(
+        default_factory=list
+    )
+
+    events: list[str] = Field(
+        default_factory=list
+    )
+
+    dates: list[str] = Field(
+        default_factory=list
+    )
+
+    objects: list[str] = Field(
+        default_factory=list
+    )
+
+    emotions: list[str] = Field(
+        default_factory=list
+    )
+
+    summary: str | None = None
