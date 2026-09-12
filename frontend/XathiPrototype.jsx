@@ -59,10 +59,11 @@ const STOCK_PHOTOS = [
 const familyErrorMessage = error => {
   const status = error.response?.status;
   if (status === 401) return "Your session has expired. Please log in again.";
-  if (status === 403) return "You are not allowed to manage these family members.";
-  if (status === 404) return error.response?.data?.detail || "Family members were not found.";
+  if (status === 403) return apiErrorMessage(error, "You are not allowed to manage these family members.");
+  if (status === 404) return apiErrorMessage(error, "Family members were not found.");
+  if (status === 422) return apiErrorMessage(error, "Please check the family member details and try again.");
   if (!error.response) return "The backend is unavailable. Check the server and try again.";
-  return error.response?.data?.detail || "The family request could not be completed.";
+  return apiErrorMessage(error, "The family request could not be completed.");
 };
 
 const memoryErrorMessage = error => {
@@ -2248,7 +2249,7 @@ export default function XathiPrototype() {
           role: profile.role,
         }));
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const loadFamily = async () => {
@@ -2381,15 +2382,15 @@ export default function XathiPrototype() {
     setFamilyOperation({ error: "", saving: true, deleting: false });
     try {
       const payload = {
-        name: updated.name,
-        relationship: updated.relationship,
-        phone: updated.phone || "",
-        photo_url: updated.photo_url || "",
+        name: (updated.name || "").trim(),
+        relationship: (updated.relationship || updated.rel || "").trim(),
+        phone: (updated.phone || "").trim().slice(0, 20) || null,
+        photo_url: (updated.photo_url || "").trim() || null,
         is_caregiver: Boolean(updated.is_caregiver),
       };
       const response = updated.id
         ? await updateFamilyMember(updated.id, { ...payload, is_active: updated.is_active !== false })
-        : await createFamilyMember({ ...payload });
+        : await createFamilyMember(payload);
       const saved = normalizeFamilyMember(response.data);
       setFamily(current => updated.id
         ? current.map(member => member.id === saved.id ? saved : member)
