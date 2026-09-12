@@ -7,6 +7,7 @@ import '../../engine/game_engine.dart';
 import '../../engine/result_manager.dart';
 import '../../models/game_result.dart';
 import '../../services/adaptive_difficulty.dart';
+import '../../services/game_api_service.dart';
 import '../../services/performance_tracker.dart';
 import 'memory_match_game.dart';
 
@@ -33,6 +34,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   // Performance and adaptive difficulty
   final PerformanceTracker tracker = PerformanceTracker();
   final AdaptiveDifficulty adaptiveDifficulty = AdaptiveDifficulty();
+  final GameApiService gameApiService = GameApiService();
 
   int currentDifficulty = 1;
   int nextDifficulty = 1;
@@ -235,6 +237,13 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     debugPrint(
       'Total games recorded: ${resultManager.totalGames}',
     );
+    gameApiService.submitResult(result).then((success) {
+  if (success) {
+    debugPrint('Game result submitted successfully.');
+  } else {
+    debugPrint('Failed to submit game result.');
+  }
+});
 
     // Game has finished.
     gameEngine.endGame();

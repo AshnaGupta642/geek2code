@@ -7,6 +7,7 @@ import '../../engine/game_engine.dart';
 import '../../engine/result_manager.dart';
 import '../../models/game_result.dart';
 import '../../services/adaptive_difficulty.dart';
+import '../../services/game_api_service.dart';
 import '../../services/performance_tracker.dart';
 import '../../services/sound_service.dart';
 import 'sound_memory_game.dart';
@@ -30,7 +31,7 @@ class _SoundMemoryScreenState
 
   final GameEngine gameEngine = GameEngine();
   final ResultManager resultManager = ResultManager();
-
+  final GameApiService gameApiService = GameApiService();
   late GameAdapter gameAdapter;
 
   final PerformanceTracker tracker = PerformanceTracker();
@@ -163,6 +164,14 @@ class _SoundMemoryScreenState
           DateTime.now().millisecondsSinceEpoch.toString(),
       completionRate: 1.0,
     );
+
+    gameApiService.submitResult(result).then((success) {
+  if (success) {
+    debugPrint('Sound Memory result submitted successfully.');
+  } else {
+    debugPrint('Failed to submit Sound Memory result.');
+  }
+});
 
     resultManager.addResult(result);
 
