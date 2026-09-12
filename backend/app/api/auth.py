@@ -1,8 +1,13 @@
+
+
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.user import User
+from app.models.patient import Patient
+from app.models.caregiver import Caregiver
 from app.schemas.auth import (
     RegisterRequest,
     RegisterResponse,
@@ -61,6 +66,15 @@ def register(
     )
 
     db.add(new_user)
+    db.flush()
+
+    # Matching profile rows are required after login:
+    # patients for /api/family and /api/memories, caregivers for caregiver routes.
+    if new_user.role == "patient":
+        db.add(Patient(user_id=new_user.id))
+    elif new_user.role == "caregiver":
+        db.add(Caregiver(user_id=new_user.id))
+
     db.commit()
     db.refresh(new_user)
 
