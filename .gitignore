@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment / secrets
+.env
+*.env
+
+# IDE
+.idea/
+.vscode/
+
+# Generated audio
+ai-service/data/audio_responses/
+
+# Local/test data
+ai-service/data/sample_memories/
+
+# Archives
+*.zip
+
+ai-service/tests/*.wav
