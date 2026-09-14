@@ -9,6 +9,8 @@ import {
   register,
   getMe,
   apiErrorMessage,
+  setAuthToken,
+  clearAuthToken,
   getFamilyMembers,
   createFamilyMember,
   updateFamilyMember,
@@ -18,7 +20,19 @@ import {
   createMemory,
   updateMemory,
   deleteMemory,
+  getReminders,
+  createReminder,
+  updateReminder,
+  deleteReminder,
+  recordReminderEvent,
+  getReminderHistory,
+  getPatientAlerts,
+  saveLocation,
+  getVoiceRecordings,
+  createVoiceRecording,
+  uploadAudio,
 } from "./src/services/api";
+import usePatientOrientation from "./src/hooks/usePatientOrientation";
 import {
   ChevronLeft, ChevronRight, Mic, Phone, Volume2, Check, Siren, LifeBuoy,
   Music2, Image as ImageIcon, Globe, WifiOff, Wifi, Plus, MapPin, Play, Pause,
@@ -78,29 +92,33 @@ const memoryErrorMessage = error => {
 
 const normalizeFamilyMember = member => ({
   ...member,
-  photo: member.photo_url || "",
-  rel: member.relationship,
+  photo: member.photo || member.photo_url || "",
+  photo_url: member.photo_url || member.photo || "",
+  rel: member.rel || member.relationship || "",
+  relationship: member.relationship || member.rel || "",
+  isEmergency: member.isEmergency ?? member.is_emergency ?? Boolean(member.is_caregiver),
+  isPrimary: member.isPrimary ?? member.is_primary ?? Boolean(member.is_caregiver),
 });
+
+const normalizeMemory = memory => ({
+  ...memory,
+  event_date: memory?.event_date ? String(memory.event_date).slice(0, 10) : "",
+  cover_photo_url: memory?.cover_photo_url || memory?.img || "",
+  story_text: memory?.story_text || "",
+  summary: memory?.summary || "",
+  tags: memory?.tags || "",
+  people: memory?.people || "",
+  location: memory?.location || "",
+  audio_url: memory?.audio_url || "",
+});
+
+const getFriendlyMemoryStatus = memory => memory?.is_approved ? "Verified" : "Being reviewed";
+
+const getMemoryMeta = memory => [memory?.people, memory?.location, memory?.event_date].filter(Boolean);
 
 const INITIAL_SONGS = [
   { id: "s1", title: "Dinot Dinot", recordedBy: "rupa", source: "Rupa", description: "A familiar Assamese song.", audio_url: "", duration_seconds: null, is_available: true, is_approved: true, language: "Assamese", hasPhoto: true, img: STOCK_PHOTOS[2] },
   { id: "s2", title: "Bihu Naam", recordedBy: "mili", source: "Mili", description: "A patient-approved family song.", audio_url: "", duration_seconds: null, is_available: true, is_approved: true, language: "Assamese", hasPhoto: true, img: STOCK_PHOTOS[3] },
-];
-
-const INITIAL_MEDICINES = [
-  { id: "r1", title: "Morning Medicine", desc: "Take 1 tablet", time: "8:00 AM", voiceReminder: true, recordedBy: "bikash", status: "taken" },
-  { id: "r2", title: "Evening Medicine", desc: "Take after dinner", time: "8:00 PM", voiceReminder: true, recordedBy: "rupa", status: "upcoming" },
-];
-
-const INITIAL_CAREGIVER_MEDICINES = [
-  { id: "cm1", name: "Amlodipine", dosage: "1 tablet", instructions: "Take after breakfast", start_date: "2026-01-10", end_date: "2026-12-31", is_active: true },
-  { id: "cm2", name: "Vitamin B12", dosage: "1 tablet", instructions: "Take with water", start_date: "2026-02-01", end_date: "2026-08-31", is_active: false },
-];
-
-const INITIAL_SAFE_ZONES = [
-  { id: "home", name: "Home", address: "Uzan Bazar, Guwahati, Assam", radius: 200, active: true },
-  { id: "rupa", name: "Rupa's House", address: "Bhagawati Nagar, Guwahati, Assam", radius: 150, active: true },
-  { id: "clinic", name: "Clinic", address: "GMCH, Guwahati, Assam", radius: 100, active: false },
 ];
 
 const ROUTINES = [
@@ -115,43 +133,6 @@ const ROUTINES = [
   { id: "d9", icon: "ðŸ˜´", label: "Sleep", time: "9:30 PM", repeat: "Every day", reminderType: "ðŸ”” Voice reminder", status: "upcoming" },
   { id: "d10", icon: "ðŸ§˜", label: "Exercise / meditation", time: "6:30 AM", repeat: "Every day", reminderType: "ðŸ”” Voice reminder", status: "completed" },
   { id: "d11", icon: "ðŸ‘¨â€ðŸ‘©â€ðŸ‘§", label: "Family visit", time: "4:00 PM", repeat: "Today only", reminderType: "ðŸ”” Voice reminder", status: "upcoming" },
-];
-
-const ENGAGEMENT = [
-  { label: "Memory Games", level: "High engagement", note: "Memory-game participation has been higher than usual this week.", values: [3, 4, 3, 5, 4, 5, 4] },
-  { label: "Matching Games", level: "Medium engagement", note: "Steady participation this week.", values: [2, 3, 2, 3, 3, 2, 3] },
-  { label: "Music Activities", level: "High engagement", note: "Engagement has been higher this week.", values: [4, 4, 5, 4, 5, 5, 4] },
-  { label: "Recall Activities", level: "Lower engagement this week", note: "Recall-activity participation has been lower than usual this week.", values: [3, 2, 2, 1, 2, 1, 2] },
-];
-
-const ALERTS = [
-  { id: "a1", tone: "red", icon: "ðŸ”´", title: "Medicine missed", body: "Evening medicine was not marked as taken.", action: "Remind again" },
-  { id: "a2", tone: "amber", icon: "ðŸŸ ", title: "Hydration reminder", body: "3 hydration reminders remain today.", action: "Remind" },
-  { id: "a3", tone: "green", icon: "ðŸŸ¢", title: "Routine completed", body: "Today's morning routine has been completed.", action: null },
-  { id: "a4", tone: "amber", icon: "ðŸ§ ", title: "Activity reminder", body: "No cognitive activity has been completed today.", action: "Send reminder" },
-];
-
-const INITIAL_CAREGIVER_ALERTS = [
-  { id: "alert-1", type: "SOS", title: "Emergency alert triggered", message: "Patient pressed SOS at 8:42 AM. Caregiver notified and emergency contact attempted.", created_at: "2026-09-08T08:42:00+05:30", resolved: false },
-  { id: "alert-2", type: "SAFE_ZONE_EXIT", title: "Safe zone exited", message: "Patient left the home safe zone and is outside the configured 200m radius.", created_at: "2026-09-08T07:15:00+05:30", resolved: false },
-  { id: "alert-3", type: "MISSED_REMINDERS", title: "Missed reminders", message: "Patient has missed 3 reminders in the last 7 days and requires follow-up.", created_at: "2026-09-07T18:00:00+05:30", resolved: true },
-];
-
-const INITIAL_CAREGIVER_NOTIFICATIONS = [
-  { id: "notification-1", type: "SOS", message: "Aita Sharma triggered an emergency SOS.", created_at: "2026-09-09T08:42:00+05:30", is_read: false },
-  { id: "notification-2", type: "SAFE_ZONE_EXIT", message: "Aita Sharma left the configured home safe zone.", created_at: "2026-09-09T07:15:00+05:30", is_read: false },
-  { id: "notification-3", type: "MISSED_REMINDERS", message: "Aita Sharma has missed 3 reminders in the last 7 days.", created_at: "2026-09-08T18:00:00+05:30", is_read: true },
-];
-
-const TIMELINE = [
-  { time: "7:30 AM", icon: "ðŸŒ…", label: "Wake up", status: "completed" },
-  { time: "8:00 AM", icon: "ðŸ’Š", label: "Morning medicine", status: "taken" },
-  { time: "8:30 AM", icon: "ðŸ½ï¸", label: "Breakfast", status: "completed" },
-  { time: "10:00 AM", icon: "ðŸ§ ", label: "Memory game", status: "completed" },
-  { time: "10:30 AM", icon: "ðŸ’§", label: "Drink water", status: "completed" },
-  { time: "1:00 PM", icon: "ðŸ›", label: "Lunch", status: "completed" },
-  { time: "4:00 PM", icon: "ðŸ‘¨â€ðŸ‘©â€ðŸ‘§", label: "Family call", status: "upcoming" },
-  { time: "8:00 PM", icon: "ðŸ’Š", label: "Evening medicine", status: "upcoming" },
 ];
 
 const LANGUAGES = [
@@ -364,113 +345,680 @@ function DoneMessage({ backLabel, onBack, text }) {
 
 // ================= PATIENT-FACING SCREENS =================
 function HomeScreen({ nav, offline, language }) {
-  const { t } = useTranslation('home');
+  const { t } = useTranslation("home");
+  const orientation = usePatientOrientation();
   return (
     <ScreenShell offline={offline} mic={() => nav("voiceRetry", "home")} help={() => nav("help")} talk={() => nav("talkToXathi")}>
-      <div className="mt-3 flex items-start justify-between">
-        <div>
-          <h1 className="text-[26px] font-bold leading-[1.15]" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{t("Good Morning, Aita")}</h1>
-          <p className="text-sm mt-0.5" style={{ color: C.inkMuted }}>{t("Good morning, Aita")}</p>
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h1
+            className="text-[30px] font-bold leading-[1.15]"
+            style={{ color: C.ink, fontFamily: FONT_HEAD }}
+            aria-live="polite"
+          >
+            {t("greetingWithName", {
+              greeting: orientation.greeting,
+              name: orientation.firstName,
+              defaultValue: `${orientation.greeting}, ${orientation.firstName}`,
+            })}{" "}
+            <span aria-hidden="true">❤️</span>
+          </h1>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <button onClick={() => nav("language")} className="flex items-center gap-1 rounded-full border bg-white px-3 py-1.5 text-xs font-semibold" style={{ borderColor: C.border, color: C.ink }}>
-            {LANGUAGES.find(l => l.code === language)?.sub.slice(0, 2) || "à¦…"} / En
+            {LANGUAGES.find(l => l.code === language)?.sub.slice(0, 2) || "অ"} / En
           </button>
           <SettingsButton onClick={() => nav("settings")} />
         </div>
       </div>
-      <div className="mt-4 flex items-center gap-3 rounded-2xl px-4 py-3" style={{ background: C.card }}>
-        <span className="flex h-9 w-9 items-center justify-center rounded-full" style={{ background: C.amberSoft }}><Sun size={18} style={{ color: C.amberText }} /></span>
-        <div>
-          <p className="text-sm font-bold" style={{ color: C.ink }}>{"Wednesday morning"}</p>
-          <p className="text-xs" style={{ color: C.inkMuted }}>{"2 September Â· Guwahati"}</p>
-        </div>
-      </div>
+      <section
+        className="mt-4 rounded-2xl px-4 py-4"
+        style={{ background: C.card }}
+        aria-label="Today's orientation"
+      >
+        <p className="text-[22px] font-bold leading-snug" style={{ color: C.ink, fontFamily: FONT_HEAD }}>
+          {t("todayIs", { day: orientation.weekday, defaultValue: orientation.todayLine })}
+        </p>
+        <p className="mt-1 text-[20px] font-semibold leading-snug" style={{ color: C.ink }}>
+          {orientation.dateLine}
+        </p>
+        <p className="mt-3 text-[18px] font-semibold leading-snug" style={{ color: C.ink }}>
+          {t("youAreAtHome", { defaultValue: orientation.locationLine })}
+        </p>
+        <p className="mt-2 text-[18px] font-semibold leading-snug" style={{ color: C.ink }}>
+          {t("weatherLine", {
+            emoji: orientation.weather.emoji,
+            condition: orientation.weather.condition,
+            defaultValue: orientation.weatherLine,
+          })}
+        </p>
+      </section>
       <div className="mt-4 grid grid-cols-2 gap-3">
-        {[["family", Users, "Family", "green"], ["memories", Images, "Memories", "amber"], ["games", Gamepad2, "Games", "green"], ["music", Music2, "Music", "amber"]].map(([key, Icon, label, tone]) => (
+        {[["family", Users, "Family", "green"], ["memories", Images, "Memories", "amber"], ["games", Gamepad2, "Games", "green"], ["music", Music2, "Music", "amber"], ["routine", PillIcon, "My Routine", "green"]].map(([key, Icon, label, tone]) => (
           <button key={key} onClick={() => nav(key)} className="flex flex-col items-center justify-center gap-2 rounded-[22px] py-7 active:scale-95" style={{ background: tone === "green" ? C.greenSoft : C.amberSoft }}>
             <Icon size={24} strokeWidth={1.8} style={{ color: C.ink }} />
             <span className="text-[15px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{label}</span>
           </button>
         ))}
       </div>
-      <div className="mt-3 mb-2"><SpeechBubble>{"Good morning Aita. Your daughter Rupa will visit today."}</SpeechBubble></div>
+      <div className="mt-3 mb-2"><SpeechBubble>{`${orientation.greeting} ${orientation.firstName}. Your daughter Rupa will visit today.`}</SpeechBubble></div>
     </ScreenShell>
   );
+}
+
+const reminderIcon = reminderType => {
+  const type = String(reminderType || "").toUpperCase();
+  if (type.includes("WATER") || type.includes("HYDRAT")) return Droplet;
+  if (type.includes("MEAL") || type.includes("LUNCH") || type.includes("BREAKFAST") || type.includes("DINNER")) return Utensils;
+  if (type.includes("APPOINT")) return Calendar;
+  if (type.includes("ACTIV") || type.includes("EXERCISE")) return Footprints;
+  return PillIcon;
+};
+
+const formatReminderTime = value => {
+  if (!value) return "";
+  const [hours, minutes] = String(value).split(":").map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return String(value);
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours >= 12 ? "PM" : "AM"}`;
+};
+
+const reminderErrorMessage = error => {
+  const status = error?.response?.status;
+  if (status === 401) return "Your session has expired. Please log in again.";
+  if (status === 403) return apiErrorMessage(error, "You are not allowed to manage these reminders.");
+  if (status === 404) return apiErrorMessage(error, "Reminder not found.");
+  if (status === 422) return apiErrorMessage(error, "Please check the reminder details and try again.");
+  if (error?.code === "ERR_NETWORK" || error?.message === "Network Error" || (error && !error.response && error.request)) {
+    return "The backend is unavailable. Check the server and try again.";
+  }
+  return apiErrorMessage(error, "The reminder request could not be completed.");
+};
+
+const toApiScheduledTime = value => {
+  if (!value && value !== 0) return "09:00:00";
+  const str = String(value).trim();
+  const ampm = str.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i);
+  if (ampm) {
+    let hours = Number(ampm[1]);
+    const minutes = ampm[2];
+    const seconds = ampm[3] || "00";
+    const period = ampm[4].toUpperCase();
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, "0")}:${minutes}:${seconds}`;
+  }
+  const parts = str.split(":");
+  if (parts.length >= 2) {
+    const hours = Number(parts[0]);
+    const minutes = Number(parts[1]);
+    const seconds = parts.length > 2 ? Number(String(parts[2]).slice(0, 2)) : 0;
+    if (!Number.isNaN(hours) && !Number.isNaN(minutes) && !Number.isNaN(seconds)) {
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    }
+  }
+  return "09:00:00";
+};
+
+const isSameLocalDay = iso => {
+  if (!iso) return false;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
+  const now = new Date();
+  return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+};
+
+const applyReminderHistory = (reminders, history) => {
+  const completed = new Set(
+    (Array.isArray(history) ? history : [])
+      .filter(item => item.status === "COMPLETED" && isSameLocalDay(item.scheduled_at || item.created_at || item.completed_at))
+      .map(item => item.reminder_id)
+  );
+  return reminders.map(reminder => (
+    completed.has(reminder.id) || reminder.patientStatus === "COMPLETED"
+      ? { ...reminder, patientStatus: "COMPLETED" }
+      : reminder
+  ));
+};
+
+const reminderToMedicine = reminder => ({
+  ...reminder,
+  title: reminder.reminder_type || reminder.title || "",
+  desc: reminder.reminder_text || reminder.desc || "",
+  time: formatReminderTime(reminder.scheduled_time) || reminder.time || "",
+  voiceReminder: reminder.voiceReminder ?? Boolean(reminder.voice_recording_id),
+  recordedBy: reminder.recordedBy ?? null,
+  status: reminder.patientStatus === "COMPLETED" ? "taken" : "upcoming",
+});
+
+const medicineToReminderPayload = medicine => {
+  const title = String(medicine.title || "").trim();
+  const desc = String(medicine.desc || "").trim();
+  const payload = {
+    reminder_type: title.slice(0, 30),
+    reminder_text: (desc || title).slice(0, 500),
+    scheduled_time: toApiScheduledTime(medicine.time || medicine.scheduled_time),
+    repeat_pattern: medicine.repeat_pattern || "DAILY",
+  };
+  if (medicine.medicine_id != null) payload.medicine_id = medicine.medicine_id;
+  if (medicine.voiceReminder !== false && medicine.voice_recording_id != null) {
+    payload.voice_recording_id = medicine.voice_recording_id;
+  }
+  return payload;
+};
+
+function ReminderCard({ reminder, onClick }) {
+  const Icon = reminderIcon(reminder.reminder_type);
+  const completed = reminder.patientStatus === "COMPLETED";
+  return (
+    <button onClick={onClick} className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 text-left" style={{ background: completed ? C.greenSoft : C.card, border: `1px solid ${C.border}` }}>
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full" style={{ background: completed ? C.card : C.amberSoft }}><Icon size={23} style={{ color: completed ? C.green : C.amberText }} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-2"><span className="text-lg font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{formatReminderTime(reminder.scheduled_time)}</span>{completed && <span className="text-xs font-bold" style={{ color: C.green }}>Taken</span>}</span>
+        <span className="mt-1 block text-base font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{reminder.reminder_type}</span>
+        <span className="mt-0.5 block text-sm" style={{ color: C.inkMuted }}>{reminder.reminder_text}</span>
+      </span>
+      <ChevronRight size={22} style={{ color: C.green }} />
+    </button>
+  );
+}
+
+function RoutineScreen({ nav, goBack, reminders, loading, error, onRetry }) {
+  const activeReminders = reminders.filter(reminder => reminder.status !== "PAUSED");
+  return (
+    <ScreenShell backLabel="Home" title="Today's Routine" onBack={goBack} mic={() => nav("voiceRetry", "routine")} help={() => nav("help")}>
+      <div className="mt-3"><p className="text-[22px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>☀️ Good morning!</p><p className="mt-1 text-[17px]" style={{ color: C.inkMuted }}>Here is your day</p></div>
+      {loading && <p className="mt-8 text-center text-sm" style={{ color: C.inkMuted }}>Loading your routine...</p>}
+      {!loading && error && <div className="mt-6 rounded-2xl px-4 py-4 text-center" style={{ background: C.redSoft, color: C.red }}><p className="font-semibold">Your routine could not be loaded.</p><button onClick={onRetry} className="mt-3 rounded-full px-4 py-2 font-bold underline">Try Again</button></div>}
+      {!loading && !error && activeReminders.length === 0 && <div className="mt-10 flex flex-col items-center gap-3 text-center"><span className="flex h-16 w-16 items-center justify-center rounded-full" style={{ background: C.greenSoft }}><Footprints size={30} style={{ color: C.green }} /></span><p className="text-[22px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>Nothing planned yet</p><p className="text-base" style={{ color: C.inkMuted }}>You can enjoy your day.</p></div>}
+      {!loading && !error && activeReminders.length > 0 && <div className="mt-5 flex flex-col gap-3 pb-4">{activeReminders.map(reminder => <ReminderCard key={reminder.id} reminder={reminder} onClick={() => nav("reminderDetail", reminder)} />)}</div>}
+    </ScreenShell>
+  );
+}
+
+function ReminderDetailScreen({ nav, goBack, reminder, onTaken }) {
+  const [laterChoice, setLaterChoice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+  const Icon = reminderIcon(reminder?.reminder_type);
+  if (!reminder) return null;
+
+  const markTaken = async () => {
+    setIsSaving(true);
+    setError("");
+    try { await onTaken(reminder.id); goBack(); } catch { setError("This reminder could not be updated. Please try again."); } finally { setIsSaving(false); }
+  };
+
+  return (
+    <ScreenShell backLabel="Today's Routine" title="Reminder" onBack={goBack} mic={() => nav("voiceRetry", "reminderDetail")} help={() => nav("help")}>
+      <div className="mt-6 flex flex-col items-center text-center"><span className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: C.amberSoft }}><Icon size={34} style={{ color: C.amberText }} /></span><h1 className="mt-5 text-[25px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{reminder.reminder_type}</h1><p className="mt-2 text-base" style={{ color: C.inkMuted }}>{reminder.reminder_text}</p><p className="mt-4 text-[25px] font-bold" style={{ color: C.green, fontFamily: FONT_HEAD }}>{formatReminderTime(reminder.scheduled_time)}</p>
+        {error && <p role="alert" className="mt-4 rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: C.redSoft, color: C.red }}>{error}</p>}
+        <button onClick={markTaken} disabled={isSaving || reminder.patientStatus === "COMPLETED"} className="mt-7 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-bold text-white disabled:opacity-50" style={{ background: C.green, fontFamily: FONT_HEAD }}><Check size={22} /> {isSaving ? "Saving..." : "Taken"}</button>
+        <button onClick={() => setLaterChoice(laterChoice ? "" : "choose")} className="mt-3 w-full rounded-2xl py-4 text-lg font-bold" style={{ background: C.greenSoft, color: C.green, fontFamily: FONT_HEAD }}>Remind Me Later</button>
+        {laterChoice === "choose" && <div className="mt-5 w-full rounded-2xl px-4 py-4" style={{ background: C.card }}><p className="text-lg font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>When would you like to be reminded?</p><div className="mt-3 flex flex-col gap-2">{["10 minutes", "30 minutes", "1 hour"].map(choice => <button key={choice} onClick={() => setLaterChoice(choice)} className="w-full rounded-xl py-3 font-bold" style={{ background: C.greenSoft, color: C.green }}>{choice}</button>)}</div><p className="mt-3 text-xs" style={{ color: C.inkMuted }}>Rescheduling is not supported by the current reminder API.</p></div>}
+        {laterChoice && laterChoice !== "choose" && <p className="mt-3 text-base font-semibold" style={{ color: C.green }}>Reminder choice: {laterChoice}</p>}
+      </div>
+    </ScreenShell>
+  );
+}
+
+function shuffleList(items) {
+  const next = [...items];
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
+
+function getAvailableRecognitionActivityTypes(family) {
+  const validMembers = (family || []).filter(member => {
+    const name = (member.name || "").trim();
+    const relationship = (member.relationship || member.rel || "").trim();
+    const photo = (member.photo_url || member.photo || "").trim();
+    return Boolean(name || relationship || photo);
+  });
+
+  const types = [];
+  const hasPhotoName = validMembers.length > 1 && validMembers.some(member => (member.name || "").trim() && (member.photo_url || member.photo || "").trim());
+  const hasPhotoRelationship = validMembers.length > 1 && validMembers.some(member => (member.relationship || member.rel || "").trim() && (member.photo_url || member.photo || "").trim());
+  const hasRelationshipPhoto = validMembers.length > 1 && validMembers.some(member => (member.relationship || member.rel || "").trim()) && validMembers.some(member => (member.photo_url || member.photo || "").trim());
+
+  if (hasPhotoName) types.push("photoName");
+  if (hasPhotoRelationship) types.push("photoRelationship");
+  if (hasRelationshipPhoto) types.push("relationshipPhoto");
+
+  return types;
 }
 
 function FamilyScreen({ nav, goBack, family, loading, error, onRetry }) {
-  return (
-    <ScreenShell backLabel="Home" title="Family" onBack={goBack} mic={() => nav("voiceRetry", "family")} help={() => nav("help")}>
-      <div className="mt-4 flex flex-col gap-3">
-        {loading && <p className="py-4 text-center text-sm" style={{ color: C.inkMuted }}>Loading family members...</p>}
-        {!loading && error && <div className="rounded-2xl px-4 py-3 text-sm" style={{ background: C.redSoft, color: C.red }}><p>{error}</p><button onClick={onRetry} className="mt-2 font-bold underline">Try again</button></div>}
-        {!loading && !error && family.length === 0 && <p className="py-4 text-center text-sm" style={{ color: C.inkMuted }}>No family members yet.</p>}
-        {!loading && !error && family.map(f => (
-          <div key={f.id} className="flex items-center gap-3 rounded-2xl px-3 py-3" style={{ background: C.card }}>
-            {f.photo_url ? <img src={f.photo_url} alt={f.name} className="h-14 w-14 rounded-full object-cover" /> : <span className="flex h-14 w-14 items-center justify-center rounded-full" style={{ background: C.greenSoft }}><Users size={22} style={{ color: C.green }} /></span>}
-            <div className="flex-1">
-              <p className="font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{f.name}</p>
-              <p className="text-xs" style={{ color: C.inkMuted }}>{f.relationship || f.rel}</p>
-              {f.is_caregiver && <Pill tone="green" className="mt-1">Caregiver</Pill>}
-              {!f.is_active && <Pill tone="amber" className="mt-1">Inactive</Pill>}
+  const [selectedMember, setSelectedMember] = useState(null);
+
+  const selectedPhotoView = selectedMember ? (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#EDE6D4]/90 px-4">
+      <div className="w-full max-w-sm rounded-[28px] p-4" style={{ background: C.screenBg, boxShadow: "0 20px 50px rgba(22, 35, 28, 0.18)" }}>
+        <div className="mb-3 flex items-center justify-start">
+          <button onClick={() => setSelectedMember(null)} className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold" style={{ background: C.greenSoft, color: C.green, fontFamily: FONT_BODY }}>
+            <ChevronLeft size={16} /> Back
+          </button>
+        </div>
+        <div className="overflow-hidden rounded-[24px]" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+          {(selectedMember.photo_url || selectedMember.photo) ? (
+            <img src={selectedMember.photo_url || selectedMember.photo} alt={selectedMember.name || "Family member"} className="h-72 w-full object-cover" />
+          ) : (
+            <div className="flex h-72 w-full items-center justify-center" style={{ background: C.greenSoft }}>
+              <Users size={52} style={{ color: C.green }} />
             </div>
-            <Phone size={17} style={{ color: C.green }} />
-          </div>
-        ))}
+          )}
+        </div>
+        <div className="mt-4 text-center">
+          <p className="text-[28px] font-bold leading-tight" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{selectedMember.name || "Family member"}</p>
+          {(selectedMember.relationship || selectedMember.rel) && (
+            <p className="mt-1 text-base" style={{ color: C.inkMuted, fontFamily: FONT_BODY }}>{selectedMember.relationship || selectedMember.rel}</p>
+          )}
+        </div>
       </div>
-      {family.length > 0 && !loading && !error && <div className="mt-4 mb-2"><SpeechBubble>{"This is Rupa, your daughter."}</SpeechBubble></div>}
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <ScreenShell backLabel="Home" title="Family" onBack={goBack} mic={() => nav("voiceRetry", "family")} help={() => nav("help")}>
+        <div className="mt-4 flex flex-col gap-3">
+          {loading && <p className="py-4 text-center text-sm" style={{ color: C.inkMuted }}>Loading family members...</p>}
+          {!loading && error && <div className="rounded-2xl px-4 py-3 text-sm" style={{ background: C.redSoft, color: C.red }}><p>{error}</p><button onClick={onRetry} className="mt-2 font-bold underline">Try again</button></div>}
+          {!loading && !error && family.length === 0 && <p className="py-4 text-center text-sm" style={{ color: C.inkMuted }}>No family members added yet.</p>}
+          {!loading && !error && family.map(f => (
+            <div key={f.id} className="flex items-center gap-3 rounded-2xl px-3 py-3" style={{ background: C.card }}>
+              <button type="button" aria-label={`View photo for ${f.name || "family member"}`} onClick={() => setSelectedMember(f)} className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full" style={{ background: C.greenSoft }}>
+                {(f.photo_url || f.photo) ? <img src={f.photo_url || f.photo} alt={f.name} className="h-full w-full object-cover" /> : <Users size={22} style={{ color: C.green }} />}
+              </button>
+              <div className="flex-1">
+                <p className="font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{f.name}</p>
+                <p className="text-xs" style={{ color: C.inkMuted }}>{f.relationship || f.rel}</p>
+                {f.is_caregiver && <Pill tone="green" className="mt-1">Caregiver</Pill>}
+                {!f.is_active && <Pill tone="amber" className="mt-1">Inactive</Pill>}
+              </div>
+              <Phone size={17} style={{ color: C.green }} />
+            </div>
+          ))}
+        </div>
+        {!loading && !error && family.length > 0 && <div className="mt-4 mb-2"><SpeechBubble>{"People you know and love"}</SpeechBubble></div>}
+        {!loading && !error && family.length > 0 && (
+          <div className="pb-4">
+            <button onClick={() => nav("familyRecognitionIntro")} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[24px] py-4 text-lg font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>
+              {"Recognition Activity"}
+            </button>
+          </div>
+        )}
+      </ScreenShell>
+      {selectedPhotoView}
+    </>
+  );
+}
+
+function FamilyRecognitionIntroScreen({ nav, goBack, family }) {
+  const availableActivities = getAvailableRecognitionActivityTypes(family);
+
+  return (
+    <ScreenShell backLabel="Family" title="Family" onBack={goBack}>
+      <div className="mt-6 flex flex-1 flex-col items-center justify-center gap-5 px-4 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: C.greenSoft }}>
+          <Users size={30} style={{ color: C.green }} />
+        </div>
+        <div>
+          <p className="text-[26px] font-bold leading-tight" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{"Let’s remember your family"}</p>
+          <p className="mt-3 text-base" style={{ color: C.inkMuted }}>{"Look at the pictures and answer simple questions."}</p>
+        </div>
+        {availableActivities.length === 0 ? (
+          <div className="w-full rounded-2xl px-4 py-4" style={{ background: C.card }}>
+            <p className="text-base font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{"We couldn’t load a family activity right now."}</p>
+            <button onClick={goBack} className="mt-4 w-full rounded-2xl py-3.5 font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>{"Back to Family"}</button>
+          </div>
+        ) : (
+          <button onClick={() => nav("familyRecognitionGame")} className="w-full rounded-[24px] py-4 text-lg font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>{"Start Activity"}</button>
+        )}
+      </div>
     </ScreenShell>
   );
 }
 
-function MemoriesScreen({ nav, goBack, memories, index, setIndex, loading, error, onRetry, detail, detailLoading, detailError }) {
-  if (loading) {
-    return <ScreenShell backLabel="Home" title="Memories" onBack={goBack}><p className="mt-8 text-center text-sm" style={{ color: C.inkMuted }}>Loading memories...</p></ScreenShell>;
-  }
-  if (error) {
-    return <ScreenShell backLabel="Home" title="Memories" onBack={goBack}><div className="mt-8 rounded-2xl px-4 py-3 text-sm" style={{ background: C.redSoft, color: C.red }}><p>{error}</p><button onClick={onRetry} className="mt-2 font-bold underline">Try again</button></div></ScreenShell>;
-  }
-  if (memories.length === 0) {
+function FamilyRecognitionGameScreen({ goBack, family }) {
+  const builtActivities = React.useMemo(() => {
+    const types = getAvailableRecognitionActivityTypes(family);
+    const sequence = shuffleList(types).map(type => ({ type }));
+    return sequence;
+  }, [family]);
+
+  const [stepIndex, setStepIndex] = React.useState(0);
+  const [selectedAnswer, setSelectedAnswer] = React.useState(null);
+  const [showFeedback, setShowFeedback] = React.useState(false);
+
+  const currentStep = builtActivities[stepIndex];
+  const validMembers = (family || []).filter(member => (member.name || "").trim() || (member.relationship || member.rel || "").trim() || (member.photo_url || member.photo || "").trim());
+
+  if (!builtActivities.length) {
     return (
-      <ScreenShell backLabel="Home" title="Memories" onBack={goBack} mic={() => nav("voiceRetry", "memories")} help={() => nav("help")}>
-        <div className="mt-8 flex flex-1 flex-col items-center justify-center gap-3 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full" style={{ background: C.greenSoft }}><Images size={26} style={{ color: C.green }} /></span>
-          <p className="text-lg font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{"No memories yet"}</p>
-          <p className="text-sm" style={{ color: C.inkMuted }}>{"Ask your family to add one for you."}</p>
+      <ScreenShell backLabel="Family" title="Family" onBack={goBack}>
+        <div className="mt-8 flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
+          <p className="text-[22px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{"No activity available"}</p>
+          <p className="text-sm" style={{ color: C.inkMuted }}>{"We need a few family photos or names to continue."}</p>
+          <button onClick={goBack} className="w-full rounded-[24px] py-4 text-lg font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>{"Back to Family"}</button>
         </div>
       </ScreenShell>
     );
   }
-  const m = detail || memories[index];
-  return (
-    <ScreenShell backLabel="Home" title="Memories" onBack={goBack} badge={<Pill tone="amber"><BadgeCheck size={11} /> {"saved on this phone"}</Pill>} mic={() => nav("voiceRetry", "memories")} help={() => nav("help")}>
-      {detailLoading && <p className="mb-2 text-center text-xs" style={{ color: C.inkMuted }}>Loading memory details...</p>}
-      {detailError && <p role="alert" className="mb-2 rounded-xl px-3 py-2 text-sm" style={{ background: C.redSoft, color: C.red }}>{detailError}</p>}
-      <div className="mt-3 overflow-hidden rounded-2xl" style={{ background: C.card }}>
-        {m.cover_photo_url ? <img src={m.cover_photo_url} alt={m.title} className="h-36 w-full object-cover" /> : <div className="flex h-36 items-center justify-center" style={{ background: C.greenSoft }}><Images size={32} style={{ color: C.green }} /></div>}
-        <div className="p-4">
-          <p className="text-[17px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{m.title}</p>
-          {m.summary && <p className="mt-1 text-sm" style={{ color: C.inkMuted }}>{m.summary}</p>}
-          {m.story_text && <p className="mt-2 text-xs leading-relaxed" style={{ color: C.ink }}>{m.story_text}</p>}
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {m.memory_type && <Pill tone="green">{m.memory_type}</Pill>}
-            {m.event_date && <Pill tone="amber">{m.event_date}</Pill>}
-            {m.location && <Pill tone="green"><MapPin size={11} /> {m.location}</Pill>}
+
+  const targetMember = validMembers[Math.floor(Math.random() * validMembers.length)] || validMembers[0];
+  const allNames = validMembers.filter(member => (member.name || "").trim()).map(member => member.name.trim());
+  const allRelationships = validMembers.filter(member => (member.relationship || member.rel || "").trim()).map(member => (member.relationship || member.rel || "").trim());
+
+  const resetRound = () => {
+    setSelectedAnswer(null);
+    setShowFeedback(false);
+    setStepIndex(current => current + 1);
+  };
+
+  const handleChoice = (choice) => {
+    setSelectedAnswer(choice);
+    setShowFeedback(true);
+  };
+
+  const nextLabel = stepIndex >= builtActivities.length - 1 ? "Finish" : "Next";
+
+  const renderQuestion = () => {
+    const type = currentStep?.type;
+
+    if (type === "photoName") {
+      const answerOptions = shuffleList(validMembers.filter(member => (member.name || "").trim())).slice(0, Math.min(4, validMembers.length));
+      const currentTarget = answerOptions[0] || validMembers[0];
+      const correctName = (currentTarget.name || "").trim();
+      return (
+        <div className="mt-4 flex flex-col gap-4">
+          <div className="overflow-hidden rounded-[24px]" style={{ background: C.card }}>
+            <img src={currentTarget.photo_url || currentTarget.photo || STOCK_PHOTOS[0]} alt={correctName} className="h-52 w-full object-cover" />
           </div>
-          {m.people && <p className="mt-2 text-xs" style={{ color: C.inkMuted }}>People: {m.people}</p>}
-          <div className="mt-3 flex gap-2 text-xs font-semibold" style={{ color: C.inkMuted }}>
-            {m.cover_photo_url && <span className="flex items-center gap-1"><Camera size={13} /> Photo</span>}
-            {m.audio_url && <span className="flex items-center gap-1"><Volume2 size={13} /> Audio</span>}
+          <p className="text-[24px] font-bold text-center" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{"Who is this?"}</p>
+          <div className="flex flex-col gap-3">
+            {shuffleList(answerOptions).map(member => (
+              <button key={member.id} onClick={() => handleChoice(member.name)} className="rounded-[20px] px-4 py-4 text-lg font-bold" style={{ background: selectedAnswer === member.name ? C.greenSoft : C.card, color: C.ink, fontFamily: FONT_HEAD }}>
+                {member.name}
+              </button>
+            ))}
           </div>
+          {showFeedback && (
+            <div className="rounded-[20px] px-4 py-3 text-center text-base" style={{ background: C.greenSoft, color: C.green }}>
+              {selectedAnswer === correctName ? "Nice job!" : `Good try! This is ${correctName}.`}
+            </div>
+          )}
         </div>
-      </div>
-      <div className="mt-3 mb-2 flex items-center justify-center gap-3">
-        <button onClick={() => setIndex(i => Math.max(0, i - 1))} className="rounded-full px-5 py-1.5 text-sm font-semibold" style={{ background: C.greenSoft, color: C.green }}>â€¹ {"Before"}</button>
-        <button onClick={() => setIndex(i => Math.min(memories.length - 1, i + 1))} className="rounded-full px-5 py-1.5 text-sm font-semibold" style={{ background: C.greenSoft, color: C.green }}>{"Next"} â€º</button>
+      );
+    }
+
+    if (type === "photoRelationship") {
+      const currentTarget = validMembers.find(member => (member.relationship || member.rel || "").trim()) || validMembers[0];
+      const correctRelation = (currentTarget.relationship || currentTarget.rel || "").trim();
+      const options = shuffleList([...new Set(validMembers.map(member => (member.relationship || member.rel || "").trim()).filter(Boolean))]).slice(0, 4);
+      return (
+        <div className="mt-4 flex flex-col gap-4">
+          <div className="overflow-hidden rounded-[24px]" style={{ background: C.card }}>
+            <img src={currentTarget.photo_url || currentTarget.photo || STOCK_PHOTOS[0]} alt={currentTarget.name} className="h-52 w-full object-cover" />
+          </div>
+          <p className="text-[24px] font-bold text-center" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{"Who is this to you?"}</p>
+          <div className="flex flex-col gap-3">
+            {options.map(option => (
+              <button key={option} onClick={() => handleChoice(option)} className="rounded-[20px] px-4 py-4 text-lg font-bold" style={{ background: selectedAnswer === option ? C.greenSoft : C.card, color: C.ink, fontFamily: FONT_HEAD }}>
+                {option}
+              </button>
+            ))}
+          </div>
+          {showFeedback && (
+            <div className="rounded-[20px] px-4 py-3 text-center text-base" style={{ background: C.greenSoft, color: C.green }}>
+              {selectedAnswer === correctRelation ? "Nice job!" : `Good try! This is ${correctRelation}.`}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (type === "relationshipPhoto") {
+      const relationshipOptions = [...new Set(validMembers.map(member => (member.relationship || member.rel || "").trim()).filter(Boolean))];
+      const currentTarget = validMembers.find(member => (member.relationship || member.rel || "").trim() && (member.photo_url || member.photo || "").trim()) || validMembers[0];
+      const correctRelationship = (currentTarget.relationship || currentTarget.rel || "").trim();
+      const optionMembers = shuffleList(validMembers.filter(member => (member.photo_url || member.photo || "").trim())).slice(0, Math.min(3, validMembers.length));
+      const answerSet = shuffleList([currentTarget, ...optionMembers.filter(member => member.id !== currentTarget.id)].slice(0, 3));
+      return (
+        <div className="mt-4 flex flex-col gap-4">
+          <p className="text-[24px] font-bold text-center" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{`Can you find your ${correctRelationship}?`}</p>
+          <div className="grid grid-cols-2 gap-3">
+            {answerSet.map(member => (
+              <button key={member.id} onClick={() => handleChoice(member.id)} className="overflow-hidden rounded-[20px] text-left" style={{ background: C.card, border: selectedAnswer === member.id ? `2px solid ${C.green}` : `1px solid ${C.border}` }}>
+                <img src={member.photo_url || member.photo || STOCK_PHOTOS[0]} alt={member.name} className="h-28 w-full object-cover" />
+                <div className="px-3 py-2 text-sm font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{member.name}</div>
+              </button>
+            ))}
+          </div>
+          {showFeedback && (
+            <div className="rounded-[20px] px-4 py-3 text-center text-base" style={{ background: C.greenSoft, color: C.green }}>
+              {selectedAnswer === currentTarget.id ? "Nice job!" : `Good try! This is ${currentTarget.name}.`}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <ScreenShell backLabel="Family" title="Recognition Activity" onBack={goBack}>
+      <div className="mt-3 pb-5">
+        {renderQuestion()}
+        {showFeedback && (
+          <button onClick={() => stepIndex >= builtActivities.length - 1 ? goBack() : resetRound()} className="mt-5 w-full rounded-[24px] py-4 text-lg font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>
+            {nextLabel}
+          </button>
+        )}
       </div>
     </ScreenShell>
   );
+}
+
+function FamilyRecognitionCompleteScreen({ goBack }) {
+  return (
+    <ScreenShell backLabel="Family" title="Recognition Activity" onBack={goBack}>
+      <div className="mt-8 flex flex-1 flex-col items-center justify-center gap-5 px-4 text-center">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: C.greenSoft }}>
+          <Check size={30} style={{ color: C.green }} />
+        </div>
+        <div>
+          <p className="text-[28px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{"Activity Complete!"}</p>
+          <p className="mt-2 text-base" style={{ color: C.inkMuted }}>{"You did a great job remembering."}</p>
+        </div>
+        <button onClick={goBack} className="w-full rounded-[24px] py-4 text-lg font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>{"Back to Family"}</button>
+      </div>
+    </ScreenShell>
+  );
+}
+
+function MemoryVaultScreen({ nav, goBack, memories, loading, error, onRetry }) {
+  if (loading) {
+    return <ScreenShell backLabel="Home" title="My Memories" onBack={goBack}><p className="mt-8 text-center text-sm" style={{ color: C.inkMuted }}>Loading memories...</p></ScreenShell>;
+  }
+  if (error) {
+    return <ScreenShell backLabel="Home" title="My Memories" onBack={goBack}><div className="mt-8 rounded-2xl px-4 py-3 text-sm" style={{ background: C.redSoft, color: C.red }}><p>{error}</p><button onClick={onRetry} className="mt-2 font-bold underline">Try again</button></div></ScreenShell>;
+  }
+  if (memories.length === 0) {
+    return (
+      <ScreenShell backLabel="Home" title="My Memories" onBack={goBack} mic={() => nav("voiceRetry", "memories")} help={() => nav("help")}>
+        <div className="mt-8 flex flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-full" style={{ background: C.greenSoft }}><Images size={28} style={{ color: C.green }} /></span>
+          <div>
+            <p className="text-[22px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{"No memories yet"}</p>
+            <p className="mt-2 text-sm" style={{ color: C.inkMuted }}>{"Let’s save a special memory together."}</p>
+          </div>
+          <button onClick={() => nav("addMemory")} className="mt-2 flex w-full items-center justify-center gap-2 rounded-[24px] py-4 text-lg font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>
+            <span aria-hidden="true">🎤</span> {"Add a Memory"}
+          </button>
+        </div>
+      </ScreenShell>
+    );
+  }
+
+  return (
+    <ScreenShell backLabel="Home" title="My Memories" onBack={goBack} mic={() => nav("voiceRetry", "memories")} help={() => nav("help")}>
+      <div className="mt-3 flex flex-col gap-3 pb-4">
+        {memories.map(memory => {
+          const meta = getMemoryMeta(memory);
+          return (
+            <button key={memory.id} onClick={() => nav("memoryDetail", memory.id)} className="overflow-hidden rounded-[24px] text-left active:scale-[0.99]" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+              <div className="relative h-36 w-full overflow-hidden">
+                {memory.cover_photo_url ? <img src={memory.cover_photo_url} alt={memory.title} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center" style={{ background: C.greenSoft }}><Images size={30} style={{ color: C.green }} /></div>}
+                <span className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: C.card, color: memory.is_approved ? C.green : C.amberText, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+                  {getFriendlyMemoryStatus(memory)}
+                </span>
+              </div>
+              <div className="p-4">
+                <p className="text-[17px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{memory.title}</p>
+                {memory.summary && <p className="mt-1 text-sm" style={{ color: C.inkMuted }}>{memory.summary}</p>}
+                {meta.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {memory.people && <span className="rounded-full px-2 py-1 text-[11px] font-semibold" style={{ background: C.greenSoft, color: C.green }}>{memory.people}</span>}
+                    {memory.location && <span className="rounded-full px-2 py-1 text-[11px] font-semibold" style={{ background: C.amberSoft, color: C.amberText }}>{memory.location}</span>}
+                    {memory.event_date && <span className="rounded-full px-2 py-1 text-[11px] font-semibold" style={{ background: C.greenSoft, color: C.green }}>{memory.event_date}</span>}
+                  </div>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      <div className="pb-4">
+        <button onClick={() => nav("addMemory")} className="flex w-full items-center justify-center gap-2 rounded-[24px] py-4 text-lg font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>
+          <Mic size={22} /> {"Add Memory"}
+        </button>
+      </div>
+    </ScreenShell>
+  );
+}
+
+function MemoryDetailScreen({ nav, goBack, memory }) {
+  if (!memory) return null;
+
+  const meta = [memory.people, memory.location, memory.event_date].filter(Boolean);
+
+  return (
+    <ScreenShell backLabel="My Memories" title="Memory" onBack={goBack}>
+      <div className="mt-3 flex flex-col gap-4 pb-5">
+        <div className="overflow-hidden rounded-[24px]" style={{ background: C.card }}>
+          {memory.cover_photo_url ? <img src={memory.cover_photo_url} alt={memory.title} className="h-48 w-full object-cover" /> : <div className="flex h-48 items-center justify-center" style={{ background: C.greenSoft }}><Images size={32} style={{ color: C.green }} /></div>}
+          <div className="p-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[22px] font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{memory.title}</p>
+              <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: memory.is_approved ? C.greenSoft : C.amberSoft, color: memory.is_approved ? C.green : C.amberText }}>
+                {getFriendlyMemoryStatus(memory)}
+              </span>
+            </div>
+            {memory.summary && <p className="mt-2 text-sm" style={{ color: C.inkMuted }}>{memory.summary}</p>}
+            {memory.story_text && <p className="mt-3 text-sm leading-relaxed" style={{ color: C.ink }}>{memory.story_text}</p>}
+            {meta.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {memory.people && <span className="rounded-full px-2 py-1 text-[11px] font-semibold" style={{ background: C.greenSoft, color: C.green }}>{memory.people}</span>}
+                {memory.location && <span className="rounded-full px-2 py-1 text-[11px] font-semibold" style={{ background: C.amberSoft, color: C.amberText }}>{memory.location}</span>}
+                {memory.event_date && <span className="rounded-full px-2 py-1 text-[11px] font-semibold" style={{ background: C.greenSoft, color: C.green }}>{memory.event_date}</span>}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {memory.audio_url && (
+          <button onClick={() => nav("voiceRetry", "memories")} className="flex w-full items-center justify-center gap-2 rounded-[24px] py-4 text-lg font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>
+            <Play size={20} /> {"Listen"}
+          </button>
+        )}
+      </div>
+    </ScreenShell>
+  );
+}
+
+function AddMemoryScreen({ goBack, onSave, operationError, isSaving }) {
+  const [phase, setPhase] = useState("idle");
+
+  const handleRecord = async () => {
+    setPhase("recording");
+    window.setTimeout(async () => {
+      setPhase("saving");
+      const createdAt = new Date();
+      const ok = await onSave({
+        title: `Memory ${createdAt.toLocaleDateString()}`,
+        summary: "A special memory saved together.",
+        story_text: "Voice memory recorded. Your memory is being prepared.",
+        memory_type: "general",
+        cover_photo_url: STOCK_PHOTOS[Math.floor(Math.random() * STOCK_PHOTOS.length)],
+        is_private: false,
+        is_approved: false,
+      });
+      if (ok) {
+        setPhase("saved");
+        window.setTimeout(() => goBack(), 1400);
+      }
+    }, 1200);
+  };
+
+  return (
+    <ScreenShell backLabel="My Memories" title="Add Memory" onBack={goBack}>
+      <div className="mt-6 flex flex-1 flex-col items-center justify-center gap-5 px-6 pb-8 text-center">
+        <div>
+          <p className="text-[28px] font-bold leading-tight" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{"Tell me about a memory"}</p>
+          <p className="mt-3 text-base" style={{ color: C.inkMuted }}>{phase === "recording" ? "Take your time" : "Take your time and speak naturally."}</p>
+        </div>
+
+        <button
+          onClick={handleRecord}
+          disabled={phase === "saving" || phase === "saved" || isSaving}
+          className="flex h-36 w-36 items-center justify-center rounded-full border-8 active:scale-95 disabled:opacity-60"
+          style={{
+            background: phase === "recording" ? C.red : C.green,
+            borderColor: "rgba(255,255,255,0.8)",
+            boxShadow: phase === "recording" ? "0 0 0 12px rgba(192,57,43,0.12)" : "0 0 0 12px rgba(31,75,59,0.10)",
+          }}
+          aria-label="Record a memory"
+        >
+          <Mic size={52} color="white" />
+        </button>
+
+        <div className="w-full">
+          <p className="text-lg font-bold" style={{ color: phase === "recording" ? C.red : C.green, fontFamily: FONT_HEAD }}>
+            {phase === "recording" ? "Listening..." : phase === "saving" ? "Your memory is being prepared." : phase === "saved" ? "Your memory has been saved." : "Tap the microphone to start"}
+          </p>
+          {phase !== "idle" && phase !== "saved" && (
+            <p className="mt-2 text-sm" style={{ color: C.inkMuted }}>{phase === "recording" ? "Take your time" : "Please wait a moment."}</p>
+          )}
+        </div>
+
+        {phase !== "idle" && phase !== "saved" && (
+          <button onClick={goBack} className="rounded-full px-6 py-3 text-base font-bold" style={{ background: C.greenSoft, color: C.green, fontFamily: FONT_HEAD }}>
+            {"Stop"}
+          </button>
+        )}
+
+        {operationError && <p role="alert" className="w-full rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: C.redSoft, color: C.red }}>{operationError}</p>}
+      </div>
+    </ScreenShell>
+  );
+}
+
+function EditMemoryScreen({ goBack, memory, onSave, onDelete, operationError, isSaving }) {
+  if (!memory) return null;
+  return <MemoryFormScreen memory={memory} goBack={goBack} onSave={onSave} onDelete={onDelete} operationError={operationError} isSaving={isSaving} />;
+}
+
+function FieldEditMemoryScreen({ goBack, memory, field, family, onSave }) {
+  if (!memory) return null;
+  return <MemoryFormScreen memory={memory} goBack={goBack} onSave={onSave} />;
+}
+
+function MemoriesScreen({ nav, goBack, memories, index, setIndex, loading, error, onRetry, detail, detailLoading, detailError }) {
+  return <MemoryVaultScreen nav={nav} goBack={goBack} memories={memories} loading={loading} error={error} onRetry={onRetry} />;
 }
 
 function AudioPreview({ audioUrl, label = "Play audio" }) {
@@ -568,9 +1116,17 @@ function GamesScreen({ nav, goBack }) {
   );
 }
 
-function ReminderScreen({ nav, goBack, medicines, family }) {
+function ReminderScreen({ nav, goBack, medicines, family, onTaken }) {
   const r = medicines[0];
   const person = family.find(f => f.id === r?.recordedBy);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+  const markTaken = async () => {
+    if (!r?.id || r.status === "taken") return;
+    setIsSaving(true);
+    setError("");
+    try { await onTaken(r.id); } catch { setError("This reminder could not be updated. Please try again."); } finally { setIsSaving(false); }
+  };
   return (
     <ScreenShell backLabel="Home" title="" onBack={goBack} mic={() => nav("voiceRetry", "reminder")} help={() => nav("help")}>
       <div className="flex flex-col items-center text-center">
@@ -585,7 +1141,8 @@ function ReminderScreen({ nav, goBack, medicines, family }) {
           </div>
           <Volume2 size={18} style={{ color: C.inkMuted }} />
         </div>
-        <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}><Check size={18} /> {"I took it"}</button>
+        {error && <p role="alert" className="mt-3 w-full rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: C.redSoft, color: C.red }}>{error}</p>}
+        <button onClick={markTaken} disabled={isSaving || !r?.id || r?.status === "taken"} className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-bold text-white disabled:opacity-50" style={{ background: C.green, fontFamily: FONT_HEAD }}><Check size={18} /> {isSaving ? "Saving..." : "I took it"}</button>
         <button className="mt-2 w-full rounded-2xl py-2.5 text-sm font-semibold" style={{ background: C.greenSoft, color: C.green }}>{"Remind me in a little while"}</button>
         <div className="mt-2 mb-2 w-full"><SpeechBubble>{`"Ma, it is time for your ${r?.title?.toLowerCase()}. Take it with water."`}</SpeechBubble></div>
       </div>
@@ -701,7 +1258,15 @@ function SettingsFamilyScreen({ nav, goBack, family, loading, error, onRetry, ca
 }
 
 function FamilyMemberFormScreen({ member, goBack, onSave, onDelete, operationError, isSaving }) {
-  const [form, setForm] = useState(member || { name: "", relationship: "", phone: "", photo_url: "", is_active: true, is_caregiver: false });
+  const [form, setForm] = useState(member ? {
+    ...member,
+    name: member.name || "",
+    relationship: member.relationship || member.rel || "",
+    phone: member.phone || "",
+    photo_url: member.photo_url || member.photo || "",
+    is_active: member.is_active !== false,
+    is_caregiver: Boolean(member.is_caregiver || member.isEmergency),
+  } : { name: "", relationship: "", phone: "", photo_url: "", is_active: true, is_caregiver: false });
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(member?.photo_url || member?.photo || "");
   const [photoError, setPhotoError] = useState("");
@@ -742,10 +1307,12 @@ function FamilyMemberFormScreen({ member, goBack, onSave, onDelete, operationErr
     await onSave({
       ...form,
       id: member?.id,
-      photo_url: savedPhotoUrl,
-      relationship: form.relationship.trim(),
+      photo_url: selectedPhoto ? savedPhotoUrl : (form.photo_url || savedPhotoUrl),
+      relationship: (form.relationship || form.rel || "").trim(),
       name: form.name.trim(),
       phone: form.phone.trim(),
+      isEmergency: Boolean(form.is_caregiver),
+      isPrimary: Boolean(form.is_caregiver),
     });
   };
 
@@ -849,7 +1416,7 @@ function SettingsMemoriesScreen({ nav, goBack, memories, family }) {
 }
 
 function MemoryFormScreen({ memory, goBack, onSave, onDelete, operationError, isSaving }) {
-  const [form, setForm] = useState(memory || {
+  const [form, setForm] = useState(memory ? normalizeMemory(memory) : {
     title: "",
     story_text: "",
     summary: "",
@@ -869,7 +1436,11 @@ function MemoryFormScreen({ memory, goBack, onSave, onDelete, operationError, is
   const inputClass = "w-full rounded-xl px-4 py-3 text-sm font-semibold outline-none";
   const inputStyle = { background: C.card, color: C.ink, border: `1px solid ${C.border}` };
   const field = (label, children) => <label className="mb-3 block"><span className="mb-1 block text-xs font-semibold" style={{ color: C.inkMuted }}>{label}</span>{children}</label>;
-  const choosePhoto = () => setPhotoPreview(STOCK_PHOTOS[Math.floor(Math.random() * STOCK_PHOTOS.length)]);
+  const choosePhoto = () => {
+    const nextPhoto = STOCK_PHOTOS[Math.floor(Math.random() * STOCK_PHOTOS.length)];
+    setPhotoPreview(nextPhoto);
+    update("cover_photo_url", nextPhoto);
+  };
   const prepareAudio = () => setAudioPreview(value => !value);
 
   return (
@@ -909,20 +1480,6 @@ function MemoryFormScreen({ memory, goBack, onSave, onDelete, operationError, is
       </div>
     </ScreenShell>
   );
-}
-
-function AddMemoryScreen({ goBack, onSave, operationError, isSaving }) {
-  return <MemoryFormScreen goBack={goBack} onSave={onSave} operationError={operationError} isSaving={isSaving} />;
-}
-
-function EditMemoryScreen({ goBack, memory, onSave, onDelete, operationError, isSaving }) {
-  if (!memory) return null;
-  return <MemoryFormScreen memory={memory} goBack={goBack} onSave={onSave} onDelete={onDelete} operationError={operationError} isSaving={isSaving} />;
-}
-
-function FieldEditMemoryScreen({ goBack, memory, onSave }) {
-  if (!memory) return null;
-  return <MemoryFormScreen memory={memory} goBack={goBack} onSave={onSave} />;
 }
 
 // ---------- MANAGE MUSIC ----------
@@ -1171,11 +1728,13 @@ function LocationSafetyScreen({ goBack, locSafety, setLocSafety }) {
 }
 
 // ---------- MEDICINES / REMINDERS ----------
-function SettingsRemindersScreen({ nav, goBack, medicines, family }) {
+function SettingsRemindersScreen({ nav, goBack, medicines, family, loading, error, onRetry }) {
   return (
     <ScreenShell backLabel="Settings" title="Medicines & Reminders" onBack={goBack}>
       <p className="mt-2 text-sm" style={{ color: C.inkMuted }}>{"Manage medicines and daily routines."}</p>
       <div className="mt-3 mb-3 flex flex-col gap-2">
+        {loading && <p className="py-4 text-center text-sm" style={{ color: C.inkMuted }}>Loading medicines...</p>}
+        {!loading && error && <div className="rounded-2xl px-4 py-3 text-sm" style={{ background: C.redSoft, color: C.red }}><p>{error}</p><button onClick={onRetry} className="mt-2 font-bold underline">Try again</button></div>}
         {medicines.map(m => {
           const person = family.find(f => f.id === m.recordedBy);
           return (
@@ -1198,12 +1757,29 @@ function SettingsRemindersScreen({ nav, goBack, medicines, family }) {
   );
 }
 
-function MedicineFormScreen({ goBack, medicine, family, onSave, onDelete }) {
+function MedicineFormScreen({ goBack, medicine, family, onSave, onDelete, operationError, isSaving }) {
   const [title, setTitle] = useState(medicine?.title || "");
   const [desc, setDesc] = useState(medicine?.desc || "");
   const [time, setTime] = useState(medicine?.time || "09:00");
   const [voiceReminder, setVoiceReminder] = useState(medicine?.voiceReminder ?? true);
   const [recordedBy, setRecordedBy] = useState(medicine?.recordedBy || null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const save = async () => {
+    await onSave({
+      ...medicine,
+      id: medicine?.id,
+      title,
+      desc,
+      time,
+      voiceReminder,
+      recordedBy,
+    });
+  };
+  const remove = async () => {
+    if (!medicine?.id || !onDelete) return;
+    setIsDeleting(true);
+    try { await onDelete(medicine.id); } finally { setIsDeleting(false); }
+  };
   return (
     <ScreenShell backLabel="Medicines & Reminders" title={medicine ? "Edit Medicine" : "Add Medicine"} onBack={goBack}>
       <div className="mt-4">
@@ -1213,8 +1789,9 @@ function MedicineFormScreen({ goBack, medicine, family, onSave, onDelete }) {
         <ToggleRow label="Voice reminder" on={voiceReminder} onClick={() => setVoiceReminder(v => !v)} />
         <p className="mt-3 mb-1 text-xs font-semibold" style={{ color: C.inkMuted }}>{"Who recorded the reminder"}</p>
         <PersonPicker family={family} value={recordedBy} onChange={setRecordedBy} />
-        <SaveButton disabled={!title} onClick={() => { onSave({ id: medicine?.id || "r" + Date.now(), title, desc, time, voiceReminder, recordedBy }); goBack(); }}>{"Save"}</SaveButton>
-        {medicine && <button onClick={() => { onDelete(medicine.id); goBack(); }} className="mb-4 w-full rounded-2xl py-3 font-bold" style={{ background: C.redSoft, color: C.red, fontFamily: FONT_HEAD }}>{"Delete medicine"}</button>}
+        {operationError && <p role="alert" className="mt-3 rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: C.redSoft, color: C.red }}>{operationError}</p>}
+        <SaveButton disabled={!title || isSaving || isDeleting} onClick={save}>{isSaving ? "Saving..." : "Save"}</SaveButton>
+        {medicine && <button onClick={remove} disabled={isSaving || isDeleting} className="mb-4 w-full rounded-2xl py-3 font-bold disabled:opacity-50" style={{ background: C.redSoft, color: C.red, fontFamily: FONT_HEAD }}>{isDeleting ? "Deleting..." : "Delete medicine"}</button>}
       </div>
     </ScreenShell>
   );
@@ -1505,8 +2082,19 @@ function AuthField({ label, value, onChange, type = "text", autoComplete }) {
   );
 }
 
+function AuthSelect({ label, value, onChange, options }) {
+  return (
+    <label className="mb-3 block">
+      <span className="mb-1 block text-xs font-semibold" style={{ color: C.inkMuted }}>{label}</span>
+      <select value={value} onChange={e => onChange(e.target.value)} className="w-full rounded-xl px-4 py-3 text-sm font-semibold outline-none" style={{ background: C.card, color: C.ink, border: `1px solid ${C.border}` }}>
+        {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
 function AuthShell({ children, onBack, title }) {
-  return <ScreenShell backLabel="Back" title={title} onBack={onBack} center><div className="w-full py-6">{children}</div></ScreenShell>;
+  return <ScreenShell backLabel="Back" title={title} onBack={onBack}><div className="w-full py-6">{children}</div></ScreenShell>;
 }
 
 function WelcomeScreen({ onPatient, onCaregiver }) {
@@ -1533,6 +2121,10 @@ function AuthForm({ role, mode, onBack, onSwitch, onComplete }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [language, setLanguage] = useState("en");
+  const [address, setAddress] = useState("");
+  const [emergencyContact, setEmergencyContact] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1547,7 +2139,7 @@ function AuthForm({ role, mode, onBack, onSwitch, onComplete }) {
     setSuccess("");
     setLoading(true);
     try {
-      await onComplete({ name: name.trim(), email: email.trim(), password, role, mode });
+      await onComplete({ name: name.trim(), email: email.trim(), password, role, mode, dateOfBirth, language, address, emergencyContact });
       if (isRegister) setSuccess("Registration successful. Please log in.");
     } catch (requestError) {
       setError(apiErrorMessage(requestError));
@@ -1563,6 +2155,12 @@ function AuthForm({ role, mode, onBack, onSwitch, onComplete }) {
         <AuthField label="Email" value={email} onChange={setEmail} type="email" autoComplete="email" />
         <AuthField label="Password" value={password} onChange={setPassword} type="password" autoComplete={isRegister ? "new-password" : "current-password"} />
         {isRegister && <AuthField label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} type="password" autoComplete="new-password" />}
+        {isRegister && role === "patient" && <>
+          <AuthField label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} type="date" autoComplete="bday" />
+          <AuthSelect label="Language" value={language} onChange={setLanguage} options={[{ value: "en", label: "English" }, { value: "hi", label: "Hindi" }, { value: "bn", label: "Bengali" }, { value: "as", label: "Assamese" }, { value: "ml", label: "Malayalam" }]} />
+          <AuthField label="Address" value={address} onChange={setAddress} autoComplete="street-address" />
+          <AuthField label="Emergency contact" value={emergencyContact} onChange={setEmergencyContact} type="tel" autoComplete="tel" />
+        </>}
         {success && <p role="status" className="mb-2 rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: C.greenSoft, color: C.green }}>{success}</p>}
         {error && <p role="alert" className="mb-2 rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: C.redSoft, color: C.red }}>{error}</p>}
         <button type="submit" disabled={loading} className="mt-2 mb-3 w-full rounded-2xl py-3.5 font-bold text-white disabled:opacity-40" style={{ background: C.green, fontFamily: FONT_HEAD }}>{loading ? "Please wait..." : isRegister ? "Register" : "Login"}</button>
@@ -1573,159 +2171,11 @@ function AuthForm({ role, mode, onBack, onSwitch, onComplete }) {
   );
 }
 
-function AuthCaregiverDashboard({ onBack, onSettings, onFeature }) {
-  const sections = [[Users, "Patient information", "Profile and care connections", "patientInformation"], [Music2, "Music Management", "Patient-approved audio", "caregiverMusic"], [Images, "Patient memories", "Memories, photos and stories", "caregiverMemories"], [PillIcon, "Medicines", "Current medicines and status", "caregiverMedicines"], [Clock, "Reminders", "Daily routines and reminders", "remoteManagement"], [MapPin, "Location", "Last known location and safe zones", "caregiverLocation"], [AlertCircle, "Alerts", "Important care notifications", "alerts"], [Bell, "Notifications", "Updates from Xathi", "caregiverNotifications"]];
-  const settingsFeatures = [[Type, "Font Size", "Adjust text size", "settingsFontSize"], [Globe, "Language", "Choose app language", "settingsLanguage"], [Siren, "Emergency Contacts", "Manage emergency contacts", "settingsEmergency"], [Volume2, "Voice Settings", "Control Xathi voice", "settingsVoice"], [SettingsIcon, "Other Settings", "Access and sharing controls", "otherSettings"]];
-  return <ScreenShell backLabel="Back" title="Caregiver Dashboard" onBack={onBack}><div className="mt-3 flex justify-end"><SettingsButton onClick={onSettings} /></div><p className="mt-2 mb-3 text-sm" style={{ color: C.inkMuted }}>A simple overview of the patient's care.</p><div className="mt-3 flex flex-col gap-2 pb-3">{sections.map(([Icon, label, sub, key], index) => <Row key={label} icon={Icon} label={label} sub={sub} tone={index % 2 ? "amber" : "green"} onClick={key ? () => onFeature(key) : () => { }} />)}<SectionLabel>Settings</SectionLabel>{settingsFeatures.map(([Icon, label, sub, key], index) => <Row key={key} icon={Icon} label={label} sub={sub} tone={index % 2 ? "amber" : "green"} onClick={() => onFeature(key)} />)}</div></ScreenShell>;
-}
-
-function AuthenticationFlow({ screen, setScreen, onPatientEnter, onCaregiverSettings, onCaregiverFeature }) {
+function AuthenticationFlow({ screen, setScreen, onPatientEnter }) {
   if (screen === "welcome") return <WelcomeScreen onPatient={() => setScreen("patientLogin")} onCaregiver={() => setScreen("caregiverLogin")} />;
   if (screen === "patientLogin" || screen === "patientRegister") { const isRegister = screen === "patientRegister"; return <AuthForm role="patient" mode={isRegister ? "register" : "login"} onBack={() => setScreen(isRegister ? "patientLogin" : "welcome")} onSwitch={() => setScreen(isRegister ? "patientLogin" : "patientRegister")} onComplete={onPatientEnter} />; }
   if (screen === "caregiverLogin" || screen === "caregiverRegister") { const isRegister = screen === "caregiverRegister"; return <AuthForm role="caregiver" mode={isRegister ? "register" : "login"} onBack={() => setScreen(isRegister ? "caregiverLogin" : "welcome")} onSwitch={() => setScreen(isRegister ? "caregiverLogin" : "caregiverRegister")} onComplete={onPatientEnter} />; }
-  return <AuthCaregiverDashboard onBack={() => setScreen("welcome")} onSettings={onCaregiverSettings} onFeature={onCaregiverFeature} />;
-}
-
-function PatientInformationScreen({ nav, goBack, family }) {
-  const [patient, setPatient] = useState({
-    name: "Aita Sharma",
-    email: "aita.sharma@example.com",
-    dateOfBirth: "1942-03-12",
-    language: "en",
-    address: "Uzan Bazar, Guwahati, Assam",
-    emergencyContact: "+91 98765 43210",
-  });
-  const [saved, setSaved] = useState(false);
-  const update = (field, value) => {
-    setPatient(current => ({ ...current, [field]: value }));
-    setSaved(false);
-  };
-  const inputClass = "w-full rounded-xl px-4 py-3 text-sm font-semibold outline-none";
-  const inputStyle = { background: C.card, color: C.ink, border: `1px solid ${C.border}` };
-  const fieldLabel = (label, children) => (
-    <label className="mb-3 block">
-      <span className="mb-1 block text-xs font-semibold" style={{ color: C.inkMuted }}>{label}</span>
-      {children}
-    </label>
-  );
-  return (
-    <ScreenShell backLabel="Caregiver Dashboard" title="Patient Information" onBack={goBack}>
-      <div className="mt-3 pb-3">
-        {fieldLabel("Name", <input value={patient.name} onChange={e => update("name", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {fieldLabel("Email", <input value={patient.email} onChange={e => update("email", e.target.value)} type="email" className={inputClass} style={inputStyle} />)}
-        {fieldLabel("Date of birth", <input value={patient.dateOfBirth} onChange={e => update("dateOfBirth", e.target.value)} type="date" className={inputClass} style={inputStyle} />)}
-        {fieldLabel("Language", <select value={patient.language} onChange={e => update("language", e.target.value)} className={inputClass} style={inputStyle}>{LANGUAGES.map(language => <option key={language.code} value={language.code}>{language.label}</option>)}</select>)}
-        {fieldLabel("Address", <input value={patient.address} onChange={e => update("address", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {fieldLabel("Emergency contact", <input value={patient.emergencyContact} onChange={e => update("emergencyContact", e.target.value)} type="tel" className={inputClass} style={inputStyle} />)}
-        {saved && <p role="status" className="mb-3 rounded-xl px-3 py-2 text-sm font-semibold" style={{ background: C.greenSoft, color: C.green }}>Patient information updated successfully</p>}
-        <button onClick={() => setSaved(true)} className="w-full rounded-2xl py-3.5 font-bold text-white" style={{ background: C.green, fontFamily: FONT_HEAD }}>Save Changes</button>
-        <button onClick={goBack} className="mt-2 mb-3 w-full rounded-2xl py-3.5 font-bold" style={{ background: C.greenSoft, color: C.green, fontFamily: FONT_HEAD }}>Cancel</button>
-        <SectionLabel>Family</SectionLabel>
-        <Row icon={Users} label="Family members" sub={`${family.length} family members`} onClick={() => nav("caregiverFamily")} />
-      </div>
-    </ScreenShell>
-  );
-}
-
-function CaregiverMemoriesScreen({ nav, goBack, memories, onDelete }) {
-  return (
-    <ScreenShell backLabel="Caregiver Dashboard" title="Patient Memories" onBack={goBack}>
-      <div className="mt-3 mb-3 flex flex-col gap-3">
-        {memories.length === 0 && <p className="mt-4 text-center text-sm" style={{ color: C.inkMuted }}>{"No memories yet"}</p>}
-        {memories.map(memory => (
-          <div key={memory.id} className="overflow-hidden rounded-2xl" style={{ background: C.card }}>
-            {memory.cover_photo_url && <img src={memory.cover_photo_url} alt={memory.title} className="h-32 w-full object-cover" />}
-            <div className="p-4">
-              <p className="font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{memory.title}</p>
-              {memory.summary && <p className="mt-0.5 text-xs" style={{ color: C.inkMuted }}>{memory.summary}</p>}
-              <p className="mt-2 text-xs" style={{ color: C.inkMuted }}>{memory.location || "No location"}{memory.event_date ? ` Â· ${memory.event_date}` : ""}</p>
-              <div className="mt-3 flex gap-2">
-                <button onClick={() => nav("caregiverMemoryForm", memory.id)} className="flex-1 rounded-2xl py-2.5 text-sm font-bold" style={{ background: C.greenSoft, color: C.green, fontFamily: FONT_HEAD }}>{"Edit"}</button>
-                <button onClick={() => onDelete(memory.id)} className="flex-1 rounded-2xl py-2.5 text-sm font-bold" style={{ background: C.redSoft, color: C.red, fontFamily: FONT_HEAD }}>{"Delete"}</button>
-              </div>
-            </div>
-          </div>
-        ))}
-        <button onClick={() => nav("caregiverMemoryForm")} className="mt-1 flex items-center justify-center gap-2 rounded-2xl py-3.5 font-bold" style={{ background: C.amberPillSoft, color: C.amberText, fontFamily: FONT_HEAD }}><Plus size={16} /> {"Add Memory"}</button>
-      </div>
-    </ScreenShell>
-  );
-}
-
-function CaregiverMemoryFormScreen({ memory, goBack, onSave, onDelete }) {
-  const [form, setForm] = useState(memory || { title: "", story_text: "", summary: "", memory_type: "general", tags: "", people: "", event_date: "", location: "", cover_photo_url: "", audio_url: "", is_private: false });
-  const update = (field, value) => setForm(current => ({ ...current, [field]: value }));
-  const field = (label, children) => <label className="mb-3 block"><span className="mb-1 block text-xs font-semibold" style={{ color: C.inkMuted }}>{label}</span>{children}</label>;
-  const inputClass = "w-full rounded-xl px-4 py-3 text-sm font-semibold outline-none";
-  const inputStyle = { background: C.card, color: C.ink, border: `1px solid ${C.border}` };
-  return (
-    <ScreenShell backLabel="Patient Memories" title={memory ? "Edit Memory" : "Add Memory"} onBack={goBack}>
-      <div className="mt-3 pb-3">
-        {field("Memory title", <input value={form.title} onChange={e => update("title", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {field("Story text", <textarea value={form.story_text} onChange={e => update("story_text", e.target.value)} rows={4} className={inputClass} style={inputStyle} />)}
-        {field("Summary", <input value={form.summary} onChange={e => update("summary", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {field("Memory type", <input value={form.memory_type} onChange={e => update("memory_type", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {field("Tags", <input value={form.tags} onChange={e => update("tags", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {field("People", <input value={form.people} onChange={e => update("people", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {field("Event date", <input value={form.event_date} onChange={e => update("event_date", e.target.value)} type="date" className={inputClass} style={inputStyle} />)}
-        {field("Location", <input value={form.location} onChange={e => update("location", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {field("Cover photo URL", <input value={form.cover_photo_url} onChange={e => update("cover_photo_url", e.target.value)} type="url" className={inputClass} style={inputStyle} />)}
-        {field("Audio URL", <input value={form.audio_url} onChange={e => update("audio_url", e.target.value)} type="url" className={inputClass} style={inputStyle} />)}
-        <ToggleRow label="Private memory" on={form.is_private} onClick={() => update("is_private", !form.is_private)} />
-        <SaveButton disabled={!form.title.trim()} onClick={() => onSave({ ...form, id: memory?.id || "cm" + Date.now() })}>{"Save"}</SaveButton>
-        <button onClick={goBack} className="mb-3 w-full rounded-2xl py-3.5 font-bold" style={{ background: C.greenSoft, color: C.green, fontFamily: FONT_HEAD }}>{"Cancel"}</button>
-        {memory && <button onClick={() => onDelete(memory.id)} className="mb-3 w-full rounded-2xl py-3.5 font-bold" style={{ background: C.redSoft, color: C.red, fontFamily: FONT_HEAD }}>{"Delete"}</button>}
-      </div>
-    </ScreenShell>
-  );
-}
-
-function CaregiverMedicinesScreen({ nav, goBack, medicines, onDelete }) {
-  return (
-    <ScreenShell backLabel="Caregiver Dashboard" title="Patient Medicines" onBack={goBack}>
-      <div className="mt-3 mb-3 flex flex-col gap-3">
-        {medicines.length === 0 && <p className="mt-4 text-center text-sm" style={{ color: C.inkMuted }}>No medicines yet</p>}
-        {medicines.map(medicine => (
-          <div key={medicine.id} className="flex items-center gap-3 rounded-2xl px-3 py-3" style={{ background: C.card }}>
-            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full" style={{ background: C.amberSoft }}><PillIcon size={18} style={{ color: C.amberText }} /></span>
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-sm" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{medicine.name}</p>
-              <p className="text-xs" style={{ color: C.inkMuted }}>{medicine.dosage || "No dosage"}{medicine.instructions ? ` Â· ${medicine.instructions}` : ""}</p>
-              <p className="text-xs" style={{ color: medicine.is_active ? C.green : C.inkMuted }}>{medicine.is_active ? "Active" : "Inactive"}</p>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <button onClick={() => nav("caregiverMedicineForm", medicine.id)} className="rounded-full px-3 py-1.5 text-xs font-bold" style={{ background: C.greenSoft, color: C.green }}>{"Edit"}</button>
-              <button onClick={() => onDelete(medicine.id)} className="rounded-full px-3 py-1.5 text-xs font-bold" style={{ background: C.redSoft, color: C.red }}>{"Delete"}</button>
-            </div>
-          </div>
-        ))}
-        <button onClick={() => nav("caregiverMedicineForm")} className="mt-1 flex items-center justify-center gap-2 rounded-2xl py-3.5 font-bold" style={{ background: C.amberPillSoft, color: C.amberText, fontFamily: FONT_HEAD }}><Plus size={16} /> Add Medicine</button>
-      </div>
-    </ScreenShell>
-  );
-}
-
-function CaregiverMedicineFormScreen({ medicine, goBack, onSave, onDelete }) {
-  const [form, setForm] = useState(medicine || { name: "", dosage: "", instructions: "", start_date: "", end_date: "", is_active: true });
-  const update = (field, value) => setForm(current => ({ ...current, [field]: value }));
-  const inputClass = "w-full rounded-xl px-4 py-3 text-sm font-semibold outline-none";
-  const inputStyle = { background: C.card, color: C.ink, border: `1px solid ${C.border}` };
-  const field = (label, children) => <label className="mb-3 block"><span className="mb-1 block text-xs font-semibold" style={{ color: C.inkMuted }}>{label}</span>{children}</label>;
-  return (
-    <ScreenShell backLabel="Patient Medicines" title={medicine ? "Edit Medicine" : "Add Medicine"} onBack={goBack}>
-      <div className="mt-4">
-        {field("Medicine name", <input value={form.name} onChange={e => update("name", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {field("Dosage", <input value={form.dosage} onChange={e => update("dosage", e.target.value)} type="text" className={inputClass} style={inputStyle} />)}
-        {field("Instructions", <textarea value={form.instructions} onChange={e => update("instructions", e.target.value)} rows={3} className={inputClass} style={inputStyle} />)}
-        {field("Start date", <input value={form.start_date} onChange={e => update("start_date", e.target.value)} type="date" className={inputClass} style={inputStyle} />)}
-        {field("End date", <input value={form.end_date} onChange={e => update("end_date", e.target.value)} type="date" className={inputClass} style={inputStyle} />)}
-        <ToggleRow label="Active" on={form.is_active} onClick={() => update("is_active", !form.is_active)} />
-        <SaveButton disabled={!form.name.trim()} onClick={() => { onSave({ ...form, id: medicine?.id || "cm" + Date.now() }); goBack(); }}>Save</SaveButton>
-        <button onClick={goBack} className="mb-3 w-full rounded-2xl py-3.5 font-bold" style={{ background: C.greenSoft, color: C.green, fontFamily: FONT_HEAD }}>Cancel</button>
-        {medicine && <button onClick={() => { onDelete(medicine.id); goBack(); }} className="mb-3 w-full rounded-2xl py-3.5 font-bold" style={{ background: C.redSoft, color: C.red, fontFamily: FONT_HEAD }}>Delete</button>}
-      </div>
-    </ScreenShell>
-  );
+  return <WelcomeScreen onPatient={() => setScreen("patientLogin")} onCaregiver={() => setScreen("caregiverLogin")} />;
 }
 
 function CaregiverLocationScreen({ goBack }) {
@@ -1879,45 +2329,6 @@ function CaregiverLocationScreen({ goBack }) {
             ))}
           </div>
         </div>
-      </div>
-    </ScreenShell>
-  );
-}
-
-// ================= CAREGIVER DASHBOARD =================
-function CaregiverDashboardScreen({ nav, goBack }) {
-  function CaregiverDashboardScreen({ nav, goBack }) {
-    const cards = [
-      { icon: "ðŸ’Š", label: "Medicines", value: "4 / 5 completed" },
-      { icon: "ðŸ’§", label: "Hydration", value: "5 / 8 completed" },
-      { icon: "ðŸ§ ", label: "Cognitive Activities", value: "3 completed" },
-      { icon: "ðŸš¶", label: "Daily Activities", value: "6 / 7 completed" },
-      { icon: "ðŸ“…", label: "Appointments", value: "1 upcoming" },
-    ];
-    // ... rest of the function
-  }
-  return (
-    <ScreenShell backLabel="Settings" title="Caregiver Dashboard" onBack={goBack}>
-      <div className="mt-3 flex justify-end">
-        <SettingsButton onClick={() => nav("settings")} />
-      </div>
-      <p className="mt-2 mb-3 text-sm" style={{ color: C.inkMuted }}>{"Overview of daily activity and routines."}</p>
-      <p className="mb-2 text-xs font-bold uppercase tracking-wide" style={{ color: C.green }}>{"Today's Overview"}</p>
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        {cards.map(c => (
-          <div key={c.label} className="rounded-2xl px-3 py-3" style={{ background: C.card }}>
-            <p className="text-xl">{c.icon}</p>
-            <p className="mt-1 font-bold text-sm" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{c.label}</p>
-            <p className="text-xs" style={{ color: C.inkMuted }}>{c.value}</p>
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-col gap-2 mb-3">
-        <Row icon={BarChart3} label="Cognitive Engagement" onClick={() => nav("cognitiveEngagement")} />
-        <Row icon={ShieldCheck} label="Routine Adherence" onClick={() => nav("routineAdherence")} tone="amber" />
-        <Row icon={MapPin} label="Location" sub="Current location and safe zones" onClick={() => nav("caregiverLocation")} />
-        <Row icon={AlertCircle} label="Alerts" sub={`${ALERTS.length} active`} onClick={() => nav("alerts")} tone="amber" />
-        <Row icon={Volume2} label="Remote Voice & Reminder Management" onClick={() => nav("remoteManagement")} />
       </div>
     </ScreenShell>
   );
@@ -2187,7 +2598,7 @@ export default function XathiPrototype() {
     if (!localStorage.getItem("authToken")) return [{ key: "home" }];
     try {
       const user = JSON.parse(localStorage.getItem("userData") || "null");
-      return [{ key: user?.role === "caregiver" ? "authCaregiverDashboard" : "home" }];
+      return [{ key: "home" }];
     } catch {
       return [{ key: "home" }];
     }
@@ -2206,9 +2617,11 @@ export default function XathiPrototype() {
   const [memoryDetail, setMemoryDetail] = useState(null);
   const [memoryDetailLoading, setMemoryDetailLoading] = useState(false);
   const [memoryDetailError, setMemoryDetailError] = useState("");
+  const [reminders, setReminders] = useState([]);
+  const [reminderLoading, setReminderLoading] = useState(false);
+  const [reminderError, setReminderError] = useState("");
+  const [reminderOperation, setReminderOperation] = useState({ error: "", saving: false, deleting: false });
   const [songs, setSongs] = useState(INITIAL_SONGS);
-  const [medicines, setMedicines] = useState(INITIAL_MEDICINES);
-  const [caregiverMedicines, setCaregiverMedicines] = useState(INITIAL_CAREGIVER_MEDICINES);
   const [memoryIndex, setMemoryIndex] = useState(0);
   const [songIndex, setSongIndex] = useState(0);
 
@@ -2284,7 +2697,7 @@ export default function XathiPrototype() {
     setMemoryError("");
     try {
       const response = await getMemories();
-      setMemories(Array.isArray(response.data) ? response.data : []);
+      setMemories(Array.isArray(response.data) ? response.data.map(normalizeMemory) : []);
       setMemoryIndex(0);
     } catch (error) {
       setMemoryError(memoryErrorMessage(error));
@@ -2297,6 +2710,31 @@ export default function XathiPrototype() {
     if (authScreen === "patientApp") loadMemories();
   }, [authScreen]);
 
+  const loadReminders = async () => {
+    if (!localStorage.getItem("authToken")) {
+      setReminderError("Please log in before loading your routine.");
+      return;
+    }
+    setReminderLoading(true);
+    setReminderError("");
+    try {
+      const [reminderResponse, historyResponse] = await Promise.all([
+        getReminders(),
+        getReminderHistory().catch(() => ({ data: [] })),
+      ]);
+      const rows = Array.isArray(reminderResponse.data) ? reminderResponse.data : [];
+      setReminders(applyReminderHistory(rows, historyResponse.data));
+    } catch (error) {
+      setReminderError(reminderErrorMessage(error));
+    } finally {
+      setReminderLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authScreen === "patientApp") loadReminders();
+  }, [authScreen]);
+
   useEffect(() => {
     const selectedMemory = memories[memoryIndex];
     if (authScreen !== "patientApp" || current.key !== "memories" || !selectedMemory?.id) return;
@@ -2304,7 +2742,7 @@ export default function XathiPrototype() {
     setMemoryDetailLoading(true);
     setMemoryDetailError("");
     getMemory(selectedMemory.id)
-      .then(response => setMemoryDetail(response.data))
+      .then(response => setMemoryDetail(normalizeMemory(response.data)))
       .catch(error => setMemoryDetailError(memoryErrorMessage(error)))
       .finally(() => setMemoryDetailLoading(false));
   }, [authScreen, current.key, memoryIndex, memories]);
@@ -2312,6 +2750,43 @@ export default function XathiPrototype() {
   const nav = (key, param) => setStack(s => [...s, { key, param }]);
   const goBack = () => setStack(s => (s.length > 1 ? s.slice(0, -1) : s));
   const jump = (key) => setStack([{ key: "home" }, { key }]);
+  const recordTaken = async reminderId => {
+    await recordReminderEvent({ reminder_id: reminderId, status: "COMPLETED" });
+    setReminders(current => current.map(reminder => reminder.id === reminderId ? { ...reminder, patientStatus: "COMPLETED" } : reminder));
+  };
+
+  const saveReminder = async updated => {
+    setReminderOperation({ error: "", saving: true, deleting: false });
+    try {
+      const payload = medicineToReminderPayload(updated);
+      if (!payload.reminder_type) throw new Error("Please enter a medicine name.");
+      const response = updated.id
+        ? await updateReminder(updated.id, payload)
+        : await createReminder(payload);
+      const saved = { ...response.data, patientStatus: updated.patientStatus, recordedBy: updated.recordedBy, voiceReminder: updated.voiceReminder };
+      setReminders(current => updated.id
+        ? current.map(reminder => reminder.id === saved.id ? { ...reminder, ...saved } : reminder)
+        : [...current, saved].sort((a, b) => String(a.scheduled_time || "").localeCompare(String(b.scheduled_time || ""))));
+      setReminderOperation({ error: "", saving: false, deleting: false });
+      return true;
+    } catch (error) {
+      setReminderOperation({ error: reminderErrorMessage(error), saving: false, deleting: false });
+      return false;
+    }
+  };
+
+  const removeReminder = async id => {
+    setReminderOperation({ error: "", saving: false, deleting: true });
+    try {
+      await deleteReminder(id);
+      setReminders(current => current.filter(reminder => reminder.id !== id));
+      setReminderOperation({ error: "", saving: false, deleting: false });
+      return true;
+    } catch (error) {
+      setReminderOperation({ error: reminderErrorMessage(error), saving: false, deleting: false });
+      return false;
+    }
+  };
   const logout = () => {
     let role = "patient";
     try {
@@ -2322,25 +2797,30 @@ export default function XathiPrototype() {
     localStorage.removeItem("userData");
     sessionStorage.removeItem("authToken");
     sessionStorage.removeItem("userData");
+    clearAuthToken();
     setStack([{ key: "home" }]);
     setAuthScreen(role === "caregiver" ? "caregiverLogin" : "patientLogin");
   };
-  const handleAuth = async ({ name, email, password, role, mode }) => {
+  const handleAuth = async ({ name, email, password, role, mode, dateOfBirth, language, address, emergencyContact }) => {
     if (mode === "register") {
-      return register({ name, email, password, role });
+      return register({ name, email, password, role, date_of_birth: dateOfBirth || null, language, address: address || null, emergency_contact: emergencyContact || null });
     }
 
     const response = await login({ email, password });
     const authData = response.data;
-    if (!authData.access_token || !authData.role) throw new Error("The login response was incomplete.");
+    const accessToken = authData.access_token || authData.token;
+    if (!accessToken || !authData.role) throw new Error("The login response was incomplete.");
     if (authData.role !== role) {
       throw new Error(`This account belongs to a ${authData.role}. Please use ${authData.role} login.`);
     }
-    localStorage.setItem("authToken", authData.access_token);
+    setAuthToken(accessToken);
     const session = {
       user_id: authData.user_id,
       role: authData.role,
-      token_type: authData.token_type,
+      token_type: authData.token_type || "bearer",
+      access_token: accessToken,
+      name: authData.name,
+      email: authData.email,
     };
     try {
       const me = await getMe();
@@ -2352,31 +2832,21 @@ export default function XathiPrototype() {
       /* login already succeeded; /me is optional enrichment */
     }
     localStorage.setItem("userData", JSON.stringify(session));
-    setStack([{ key: session.role === "caregiver" ? "authCaregiverDashboard" : "home" }]);
+    if (session.role === "caregiver") return authData;
+    setStack([{ key: "home" }]);
     setAuthScreen("patientApp");
     return authData;
   };
-  const openCaregiverSettings = () => {
-    setStack([{ key: "authCaregiverDashboard" }, { key: "settings" }]);
-    setAuthScreen("patientApp");
-  };
-  const openCaregiverFeature = (key) => {
-    const normalizedKey = key === "Location" || key === "Safe Return" || key === "Safe Return Home" ? "caregiverLocation" : key;
-    const alertKey = key === "alerts" || key === "Alerts" ? "alerts" : normalizedKey;
-    const featureKey = key === "caregiverNotifications" || key === "Notifications" ? "caregiverNotifications" : alertKey;
-    setStack([{ key: "authCaregiverDashboard" }, { key: featureKey }]);
-    setAuthScreen("patientApp");
-  };
 
   if (authScreen !== "patientApp") {
-    return <div className="min-h-screen w-full flex items-center justify-center" style={{ background: C.outerBg, fontFamily: FONT_BODY }}><Fonts /><div className="relative flex flex-col overflow-hidden rounded-[3rem] border-[8px]" style={{ width: "min(500px, calc(100vw - 2px))", height: "min(980px, calc(100vh - 2px))", aspectRatio: "430 / 760", background: C.screenBg, borderColor: "#161616" }}><div style={{ zoom: FONT_SCALES[fontScaleName], height: "100%", display: "flex", flexDirection: "column" }}><AuthenticationFlow screen={authScreen} setScreen={setAuthScreen} onPatientEnter={handleAuth} onCaregiverSettings={openCaregiverSettings} onCaregiverFeature={openCaregiverFeature} /></div></div></div>;
+    return <div className="min-h-screen w-full flex items-center justify-center" style={{ background: C.outerBg, fontFamily: FONT_BODY }}><Fonts /><div className="relative flex flex-col overflow-hidden rounded-[3rem] border-[8px]" style={{ width: "min(500px, calc(100vw - 2px))", height: "min(980px, calc(100vh - 2px))", aspectRatio: "430 / 760", background: C.screenBg, borderColor: "#161616" }}><div style={{ zoom: FONT_SCALES[fontScaleName], height: "100%", display: "flex", flexDirection: "column" }}><AuthenticationFlow screen={authScreen} setScreen={setAuthScreen} onPatientEnter={handleAuth} /></div></div></div>;
   }
 
   const activeFamily = family.find(f => f.id === current.param || f.id === current.param?.id);
   const activeMemory = memories.find(m => m.id === current.param || m.id === current.param?.id);
   const activeSong = songs.find(s => s.id === current.param || s.id === current.param?.id);
-  const activeMedicine = medicines.find(m => m.id === current.param);
-  const activeCaregiverMedicine = caregiverMedicines.find(m => m.id === current.param);
+  const medicines = reminders.filter(reminder => reminder.status !== "PAUSED").map(reminderToMedicine);
+  const activeMedicine = medicines.find(m => m.id === current.param || String(m.id) === String(current.param));
 
   const saveFamily = async updated => {
     setFamilyOperation({ error: "", saving: true, deleting: false });
@@ -2421,22 +2891,22 @@ export default function XathiPrototype() {
     setMemoryOperation({ error: "", saving: true, deleting: false });
     try {
       const payload = {
-        title: updated.title.trim(),
-        story_text: updated.story_text || null,
-        summary: updated.summary || null,
+        title: (updated.title || "").trim(),
+        story_text: (updated.story_text || "").trim() || null,
+        summary: (updated.summary || "").trim() || null,
         memory_type: updated.memory_type || "general",
-        tags: updated.tags || null,
-        people: updated.people || null,
-        event_date: updated.event_date || null,
-        location: updated.location || null,
-        cover_photo_url: updated.cover_photo_url || null,
-        audio_url: updated.audio_url || null,
+        tags: (updated.tags || "").trim() || null,
+        people: (updated.people || "").trim() || null,
+        event_date: updated.event_date ? String(updated.event_date).slice(0, 10) : null,
+        location: (updated.location || "").trim() || null,
+        cover_photo_url: (updated.cover_photo_url || updated.img || "").trim() || null,
+        audio_url: (updated.audio_url || "").trim() || null,
         is_private: Boolean(updated.is_private),
       };
       const response = updated.id
         ? await updateMemory(updated.id, payload)
         : await createMemory(payload);
-      const saved = response.data;
+      const saved = normalizeMemory(response.data);
       setMemories(current => updated.id
         ? current.map(memory => memory.id === saved.id ? saved : memory)
         : [saved, ...current]);
@@ -2473,27 +2943,25 @@ export default function XathiPrototype() {
     setSongIndex(i => Math.min(i, Math.max(0, next.length - 1)));
     return next;
   });
-  const saveCaregiverMedicine = (updated) => setCaregiverMedicines(ms => ms.some(m => m.id === updated.id) ? ms.map(m => m.id === updated.id ? updated : m) : [...ms, updated]);
-  const deleteCaregiverMedicine = (id) => setCaregiverMedicines(ms => ms.filter(m => m.id !== id));
 
   const screensMap = {
     home: <HomeScreen nav={nav} offline={offline} language={language} />,
     family: <FamilyScreen nav={nav} goBack={goBack} family={family} loading={familyLoading} error={familyError} onRetry={loadFamily} />,
+    familyRecognitionIntro: <FamilyRecognitionIntroScreen nav={nav} goBack={goBack} family={family} />,
+    familyRecognitionGame: <FamilyRecognitionGameScreen goBack={goBack} family={family} />,
+    familyRecognitionComplete: <FamilyRecognitionCompleteScreen goBack={goBack} />,
+    routine: <RoutineScreen nav={nav} goBack={goBack} reminders={reminders} loading={reminderLoading} error={reminderError} onRetry={loadReminders} />,
+    reminderDetail: <ReminderDetailScreen nav={nav} goBack={goBack} reminder={current.param} onTaken={recordTaken} />,
     memories: <MemoriesScreen nav={nav} goBack={goBack} memories={memories} index={memoryIndex} setIndex={setMemoryIndex} loading={memoryLoading} error={memoryError} onRetry={loadMemories} detail={memoryDetail} detailLoading={memoryDetailLoading} detailError={memoryDetailError} />,
+    memoryDetail: <MemoryDetailScreen nav={nav} goBack={goBack} memory={memories.find(memory => memory.id === current.param) || memoryDetail} />,
     music: <MusicScreen nav={nav} goBack={goBack} songs={songs} index={songIndex} setIndex={setSongIndex} family={family} />,
     games: <GamesScreen nav={nav} goBack={goBack} />,
-    reminder: <ReminderScreen nav={nav} goBack={goBack} medicines={medicines} family={family} />,
+    reminder: <ReminderScreen nav={nav} goBack={goBack} medicines={medicines} family={family} onTaken={recordTaken} />,
     help: <HelpScreen nav={nav} goBack={goBack} family={family} />,
     safeReturn: <SafeReturnScreen goBack={goBack} family={family} />,
     language: <LanguageScreen goBack={goBack} language={language} setLanguage={setLanguage} />,
     voiceRetry: <VoiceRetryScreen nav={nav} goBack={goBack} />,
     settings: <SettingsScreen goBack={goBack} onLogout={logout} />,
-    patientInformation: <PatientInformationScreen nav={nav} goBack={goBack} family={family} />,
-    caregiverFamily: <SettingsFamilyScreen nav={nav} goBack={goBack} family={family} loading={familyLoading} error={familyError} onRetry={loadFamily} canManage backLabel="Patient Information" />,
-    caregiverMemories: <CaregiverMemoriesScreen nav={nav} goBack={goBack} memories={memories} onDelete={removeMemory} />,
-    caregiverMemoryForm: <MemoryFormScreen memory={memories.find(memory => memory.id === current.param)} goBack={goBack} onSave={async updated => { if (await saveMemory(updated)) goBack(); }} onDelete={id => nav("deleteMemoryConfirm", id)} operationError={memoryOperation.error} isSaving={memoryOperation.saving} />,
-    caregiverMedicines: <CaregiverMedicinesScreen nav={nav} goBack={goBack} medicines={caregiverMedicines} onDelete={deleteCaregiverMedicine} />,
-    caregiverMedicineForm: <CaregiverMedicineFormScreen medicine={activeCaregiverMedicine} goBack={goBack} onSave={(updated) => { saveCaregiverMedicine(updated); goBack(); }} onDelete={(id) => { deleteCaregiverMedicine(id); goBack(); }} />,
     settingsFamily: <SettingsFamilyScreen nav={nav} goBack={goBack} family={family} loading={familyLoading} error={familyError} onRetry={loadFamily} />,
     addFamily: <FamilyMemberFormScreen goBack={goBack} onSave={async member => { if (await saveFamily(member)) goBack(); }} operationError={familyOperation.error} isSaving={familyOperation.saving} />,
     editFamily: <FamilyMemberFormScreen goBack={goBack} member={activeFamily} onSave={async member => { if (await saveFamily(member)) goBack(); }} onDelete={id => nav("removeFamilyConfirm", id)} operationError={familyOperation.error} isSaving={familyOperation.saving} />,
@@ -2507,7 +2975,6 @@ export default function XathiPrototype() {
     fieldEditMemory: <FieldEditMemoryScreen goBack={goBack} memory={memories.find(m => m.id === current.param?.id)} field={current.param?.field} family={family} onSave={saveMemory} />,
     deleteMemoryConfirm: <ConfirmDelete backLabel="Edit Memory" itemImg={activeMemory?.cover_photo_url} itemTitle={activeMemory?.title} caption="This memory will be removed from this phone." onCancel={goBack} error={memoryOperation.error} isDeleting={memoryOperation.deleting} onConfirm={async () => { if (await removeMemory(current.param)) { setStack(s => s.slice(0, -1)); nav("memoryDeleted"); } }} />,
     memoryDeleted: <DoneMessage backLabel="Memories" onBack={() => { setStack(s => s.slice(0, -1)); }} text="Memory deleted" />,
-    caregiverMusic: <SettingsMusicScreen nav={nav} goBack={goBack} songs={songs} family={family} />,
     addSong: <AddSongScreen goBack={goBack} onSave={(s) => setSongs(ss => [...ss, s])} />,
     editSong: <EditSongScreen goBack={goBack} song={activeSong} onSave={(s) => saveSong(s)} onDelete={(id) => nav("deleteSongConfirm", id)} />,
     fieldEditSong: <FieldEditSongScreen goBack={goBack} song={songs.find(s => s.id === current.param?.id)} field={current.param?.field} family={family} onSave={saveSong} />,
@@ -2518,9 +2985,9 @@ export default function XathiPrototype() {
     settingsLanguage: <LanguageScreen goBack={goBack} language={language} setLanguage={setLanguage} />,
     settingsHomeSafety: <HomeSafetyScreen goBack={goBack} homeSafety={homeSafety} setHomeSafety={setHomeSafety} family={family} />,
     settingsLocationSafety: <LocationSafetyScreen goBack={goBack} locSafety={locSafety} setLocSafety={setLocSafety} />,
-    settingsReminders: <SettingsRemindersScreen nav={nav} goBack={goBack} medicines={medicines} family={family} />,
-    addMedicine: <MedicineFormScreen goBack={goBack} medicine={null} family={family} onSave={(m) => setMedicines(ms => [...ms, m])} onDelete={() => { }} />,
-    editMedicine: <MedicineFormScreen goBack={goBack} medicine={activeMedicine} family={family} onSave={(m) => setMedicines(ms => ms.map(x => x.id === m.id ? m : x))} onDelete={(id) => setMedicines(ms => ms.filter(x => x.id !== id))} />,
+    settingsReminders: <SettingsRemindersScreen nav={nav} goBack={goBack} medicines={medicines} family={family} loading={reminderLoading} error={reminderError} onRetry={loadReminders} />,
+    addMedicine: <MedicineFormScreen goBack={goBack} medicine={null} family={family} onSave={async m => { if (await saveReminder(m)) goBack(); }} operationError={reminderOperation.error} isSaving={reminderOperation.saving} />,
+    editMedicine: <MedicineFormScreen goBack={goBack} medicine={activeMedicine} family={family} onSave={async m => { if (await saveReminder(m)) goBack(); }} onDelete={async id => { if (await removeReminder(id)) goBack(); }} operationError={reminderOperation.error} isSaving={reminderOperation.saving} />,
     settingsOffline: <OfflineStorageScreen goBack={goBack} memories={memories} songs={songs} />,
     settingsPrivacy: <PrivacyScreen goBack={goBack} privacy={privacy} setPrivacy={setPrivacy} />,
     otherSettings: <OtherSettingsScreen goBack={goBack} privacy={privacy} setPrivacy={setPrivacy} />,
@@ -2532,17 +2999,6 @@ export default function XathiPrototype() {
     recordVoiceReminder: <RecordVoiceReminderScreen goBack={goBack} family={family} personId={current.param} />,
     medicineReminderNotif: <MedicineReminderNotifScreen goBack={goBack} family={family} />,
     hydrationReminderNotif: <HydrationReminderNotifScreen goBack={goBack} />,
-    authCaregiverDashboard: <AuthCaregiverDashboard onBack={goBack} onSettings={() => nav("settings")} onFeature={nav} />,
-    caregiverDashboard: <CaregiverDashboardScreen nav={nav} goBack={goBack} />,
-    caregiverLocation: <CaregiverLocationScreen goBack={goBack} />,
-    alerts: <AlertsScreen goBack={goBack} />,
-    caregiverNotifications: <CaregiverNotificationsScreen goBack={goBack} />,
-    cognitiveEngagement: <CognitiveEngagementScreen goBack={goBack} />,
-    routineAdherence: <RoutineAdherenceScreen nav={nav} goBack={goBack} />,
-    dailyTimeline: <DailyTimelineScreen goBack={goBack} />,
-    alerts: <AlertsScreen goBack={goBack} />,
-    remoteManagement: <RemoteManagementScreen nav={nav} goBack={goBack} />,
-    addRemoteReminder: <AddRemoteReminderScreen goBack={goBack} family={family} />,
   };
 
   const jumpLinks = [
@@ -2553,7 +3009,7 @@ export default function XathiPrototype() {
     ["settingsReminders", "Medicines", PillIcon], ["settingsDailyRoutine", "Daily Routine", Clock],
     ["settingsFamilyVoice", "Family Voice Reminders", Volume2],
     ["medicineReminderNotif", "Medicine Notification", PillIcon], ["hydrationReminderNotif", "Water Notification", Droplet],
-    ["caregiverDashboard", "Caregiver Dashboard", BarChart3], ["settingsAccessibility", "Accessibility", Accessibility],
+    ["settingsAccessibility", "Accessibility", Accessibility],
   ];
 
   return (

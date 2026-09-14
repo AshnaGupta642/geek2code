@@ -1,0 +1,7 @@
+{
+  "Good morning, Aita": "swagat hai aapka",
+  "greetingWithName": "{{greeting}}, {{name}}",
+  "todayIs": "Today is {{day}}",
+  "youAreAtHome": "You are at Home",
+  "weatherLine": "{{emoji}} Weather: {{condition}}"
+}

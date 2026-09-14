@@ -2,6 +2,7 @@
 
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -35,7 +36,7 @@ def register(
     # Check whether email already exists
     existing_user = (
         db.query(User)
-        .filter(User.email == user_data.email)
+        .filter(func.lower(User.email) == str(user_data.email).lower())
         .first()
     )
 
@@ -60,7 +61,7 @@ def register(
     # Create user
     new_user = User(
         name=user_data.name,
-        email=user_data.email,
+        email=user_data.email.lower(),
         password_hash=hashed_password,
         role=user_data.role
     )
@@ -71,7 +72,13 @@ def register(
     # Matching profile rows are required after login:
     # patients for /api/family and /api/memories, caregivers for caregiver routes.
     if new_user.role == "patient":
-        db.add(Patient(user_id=new_user.id))
+        db.add(Patient(
+            user_id=new_user.id,
+            date_of_birth=user_data.date_of_birth,
+            language=user_data.language,
+            address=user_data.address,
+            emergency_contact=user_data.emergency_contact,
+        ))
     elif new_user.role == "caregiver":
         db.add(Caregiver(user_id=new_user.id))
 
@@ -85,7 +92,7 @@ def login(user_data: LoginRequest, db: Session = Depends(get_db)):
 
     user = (
         db.query(User)
-        .filter(User.email == user_data.email)
+        .filter(func.lower(User.email) == str(user_data.email).lower())
         .first()
     )
 
@@ -112,7 +119,9 @@ def login(user_data: LoginRequest, db: Session = Depends(get_db)):
         "access_token": access_token,
         "token_type": "bearer",
         "user_id": user.id,
-        "role": user.role
+        "role": user.role,
+        "name": user.name,
+        "email": user.email
     }
 
 @router.get("/me")

@@ -4,17 +4,74 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 const AUTH_TOKEN_KEY = 'authToken';
+const TOKEN_KEYS = ['authToken', 'access_token', 'token'];
 
 const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
         'Content-Type': 'application/json',
+        Accept: 'application/json',
     },
 });
+
+function normalizeToken(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+    let token = raw.trim();
+    if (
+        (token.startsWith('"') && token.endsWith('"')) ||
+        (token.startsWith("'") && token.endsWith("'"))
+    ) {
+        token = token.slice(1, -1).trim();
+    }
+    while (/^bearer\s+/i.test(token)) {
+        token = token.replace(/^bearer\s+/i, '').trim();
+    }
+    return token || null;
+}
+
+function tokenFromUserData() {
+    try {
+        const user = JSON.parse(localStorage.getItem('userData') || sessionStorage.getItem('userData') || 'null');
+        return normalizeToken(user?.access_token || user?.token || user?.authToken);
+    } catch {
+        return null;
+    }
+}
+
+export function readAuthToken() {
+    for (const store of [localStorage, sessionStorage]) {
+        for (const key of TOKEN_KEYS) {
+            const token = normalizeToken(store.getItem(key));
+            if (token) return token;
+        }
+    }
+    return tokenFromUserData();
+}
+
+export function setAuthToken(token) {
+    const normalized = normalizeToken(token);
+    if (!normalized) return null;
+    localStorage.setItem(AUTH_TOKEN_KEY, normalized);
+    api.defaults.headers.common.Authorization = `Bearer ${normalized}`;
+    return normalized;
+}
+
+export function clearAuthToken() {
+    TOKEN_KEYS.forEach((key) => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+    });
+    delete api.defaults.headers.common.Authorization;
+}
+
+const existing = readAuthToken();
+if (existing) setAuthToken(existing);
 
 export const register = (payload) => api.post('/auth/register', payload);
 export const login = (payload) => api.post('/auth/login', payload);
 export const getMe = () => api.get('/auth/me');
+export const getPatientProfile = () => api.get('/patient/profile');
+export const updatePatientProfile = (payload) => api.put('/patients/profile', payload);
 
 export function apiErrorMessage(error, fallback = 'The server could not complete your request.') {
     const detail = error?.response?.data?.detail;
@@ -46,16 +103,60 @@ export const createMemory = (payload) => api.post('/memories/', payload);
 export const updateMemory = (memoryId, payload) => api.put(`/memories/${memoryId}`, payload);
 export const deleteMemory = (memoryId) => api.delete(`/memories/${memoryId}`);
 
-// Request interceptor to add token
+export const getReminders = () => api.get('/reminders/');
+export const getReminder = (reminderId) => api.get(`/reminders/${reminderId}`);
+export const createReminder = (payload) => api.post('/reminders/', payload);
+export const updateReminder = (reminderId, payload) => api.put(`/reminders/${reminderId}`, payload);
+export const deleteReminder = (reminderId) => api.delete(`/reminders/${reminderId}`);
+export const recordReminderEvent = (payload) => api.post('/reminders/event', payload);
+export const getReminderHistory = () => api.get('/reminders/history');
+export const getReminderAdherence = () => api.get('/reminders/adherence');
+
+export const getPatientAlerts = () => api.get('/alerts/patient');
+export const createAlert = (payload) => api.post('/alerts/', payload);
+export const resolveAlert = (alertId) => api.put(`/alerts/${alertId}/resolve`);
+
+export const getNotifications = () => api.get('/notifications/');
+export const getUnreadNotifications = () => api.get('/notifications/unread');
+export const markNotificationRead = (notificationId) => api.put(`/notifications/${notificationId}/read`);
+export const markAllNotificationsRead = () => api.put('/notifications/read-all');
+
+export const saveLocation = (payload) => api.post('/location/', payload);
+export const getVoiceRecordings = () => api.get('/voice-recordings/');
+export const createVoiceRecording = (payload) => api.post('/voice-recordings/', payload);
+export const getVoiceRecording = (recordingId) => api.get(`/voice-recordings/${recordingId}`);
+
+export const uploadAudio = (file, extra = {}) => {
+    const form = new FormData();
+    form.append('file', file);
+    Object.entries(extra).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') form.append(key, value);
+    });
+    return api.post('/audio/upload', form);
+};
+
+export const getGames = () => api.get('/games/');
+export const startGame = (payload) => api.post('/games/start', payload);
+export const submitGameResult = (payload) => api.post('/games/result', payload);
+export const getGamePerformance = (patientId) => api.get(`/games/performance/${patientId}`);
+
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        const token = readAuthToken();
         if (token) {
+            const headerValue = `Bearer ${token}`;
             if (typeof config.headers?.set === 'function') {
-                config.headers.set('Authorization', `Bearer ${token}`);
+                config.headers.set('Authorization', headerValue, true);
             } else {
                 config.headers = config.headers || {};
-                config.headers.Authorization = `Bearer ${token}`;
+                config.headers.Authorization = headerValue;
+            }
+        }
+        if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+            if (typeof config.headers?.set === 'function') {
+                config.headers.set('Content-Type', false);
+            } else if (config.headers) {
+                delete config.headers['Content-Type'];
             }
         }
         return config;
@@ -63,7 +164,6 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
 api.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -74,8 +174,9 @@ api.interceptors.response.use(
             } catch {
                 /* keep default role */
             }
-            localStorage.removeItem(AUTH_TOKEN_KEY);
+            clearAuthToken();
             localStorage.removeItem('userData');
+            sessionStorage.removeItem('userData');
             window.dispatchEvent(new CustomEvent('xathi-auth-expired', { detail: { role } }));
         }
         return Promise.reject(error);

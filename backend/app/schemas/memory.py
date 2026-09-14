@@ -1,6 +1,19 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def _blank_to_none(value):
+    if isinstance(value, str) and not value.strip():
+        return None
+    return value
+
+
+def _normalize_event_date(value):
+    value = _blank_to_none(value)
+    if isinstance(value, str) and "T" in value:
+        return value.split("T", 1)[0]
+    return value
 
 
 class MemoryCreate(BaseModel):
@@ -33,6 +46,20 @@ class MemoryCreate(BaseModel):
 
     is_private: bool = False
     is_approved: bool = False
+
+    @field_validator(
+        "story_text", "summary", "tags", "people", "location",
+        "cover_photo_url", "audio_url",
+        mode="before",
+    )
+    @classmethod
+    def empty_optional(cls, value):
+        return _blank_to_none(value)
+
+    @field_validator("event_date", mode="before")
+    @classmethod
+    def empty_event_date(cls, value):
+        return _normalize_event_date(value)
 
 
 class MemoryUpdate(BaseModel):
@@ -72,8 +99,24 @@ class MemoryUpdate(BaseModel):
     is_private: bool | None = None
     is_approved: bool | None = None
 
+    @field_validator(
+        "story_text", "summary", "tags", "people", "location",
+        "cover_photo_url", "audio_url", "title", "memory_type",
+        mode="before",
+    )
+    @classmethod
+    def empty_optional(cls, value):
+        return _blank_to_none(value)
+
+    @field_validator("event_date", mode="before")
+    @classmethod
+    def empty_event_date(cls, value):
+        return _normalize_event_date(value)
+
 
 class MemoryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     patient_id: int
 
@@ -95,6 +138,3 @@ class MemoryResponse(BaseModel):
 
     created_at: datetime
     updated_at: datetime
-
-    class Config:
-        from_attributes = True

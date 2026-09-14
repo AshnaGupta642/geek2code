@@ -12,6 +12,8 @@ class PatientProfileCreate(BaseModel):
 class PatientProfileResponse(BaseModel):
     id: int
     user_id: int
+    name: str
+    first_name: str
     date_of_birth: date | None
     language: str
     address: str | None

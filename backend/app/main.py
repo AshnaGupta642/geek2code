@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from sqlalchemy import text
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.database.database import engine
@@ -17,9 +18,9 @@ from app.models.voice_recording import VoiceRecording
 from app.models.memory_media import MemoryMedia
 
 from app.api.auth import router as auth_router
-from app.api.patients import router as patients_router
+from app.api.patients import router as patients_router, patient_router
 from app.api.memories import router as memories_router
-from app.api.family import router as family_router
+
 from app.api.medicines import router as medicines_router
 from app.api.reminders import router as reminders_router
 from app.api.reminder_history import router as reminder_history_router
@@ -45,6 +46,23 @@ app = FastAPI(
     description="Backend API for Memora",
     version="1.0.0"
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 app.mount(
     "/audio",
     StaticFiles(directory="uploads/audio"),
@@ -53,6 +71,7 @@ app.mount(
 
 app.include_router(auth_router)
 app.include_router(patients_router)
+app.include_router(patient_router)
 app.include_router(memories_router)
 app.include_router(medicines_router)
 app.include_router(reminder_history_router)
@@ -97,3 +116,4 @@ def health_check():
             "database": "disconnected",
             "error": str(e)
         }
+
