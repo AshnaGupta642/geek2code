@@ -52,6 +52,36 @@ class GameResult {
     };
   }
 
+  Map<String, dynamic> toBackendJson({required int patientId}) {
+    return {
+      'patient_id': patientId,
+      'session_id': sessionId,
+      'game_id': gameId,
+      'score': score,
+      'accuracy': accuracy * 100,
+      'mistakes': mistakes,
+      'duration_seconds': completedAt.difference(startedAt).inSeconds,
+      'attempts': attempts,
+      'hints_used': hintsUsed,
+      'response_time': averageResponseTime,
+      'difficulty': _difficultyToString(difficulty),
+      'completed_at': completedAt.toIso8601String(),
+    };
+  }
+
+  String _difficultyToString(int difficulty) {
+    switch (difficulty) {
+      case 1:
+        return 'easy';
+      case 2:
+        return 'medium';
+      case 3:
+        return 'hard';
+      default:
+        return 'easy';
+    }
+  }
+
   factory GameResult.fromJson(Map<String, dynamic> json) {
     return GameResult(
       patientId: json['patient_id'],

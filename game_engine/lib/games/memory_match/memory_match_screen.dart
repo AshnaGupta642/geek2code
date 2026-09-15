@@ -8,15 +8,14 @@ import '../../engine/result_manager.dart';
 import '../../models/game_result.dart';
 import '../../services/adaptive_difficulty.dart';
 import '../../services/performance_tracker.dart';
+import '../../services/game_api_service.dart';
 import 'memory_match_game.dart';
 
 class MemoryMatchScreen extends StatefulWidget {
   final int difficulty;
+  final String? authToken;
 
-  const MemoryMatchScreen({
-    super.key,
-    this.difficulty = 1,
-  });
+  const MemoryMatchScreen({super.key, this.difficulty = 1, this.authToken});
 
   @override
   State<MemoryMatchScreen> createState() => _MemoryMatchScreenState();
@@ -29,6 +28,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   final GameEngine gameEngine = GameEngine();
   final ResultManager resultManager = ResultManager();
   late GameAdapter gameAdapter;
+  // Backend integration
+  final GameApiService gameApiService = GameApiService();
+  String? backendSessionId;
 
   // Performance and adaptive difficulty
   final PerformanceTracker tracker = PerformanceTracker();
@@ -49,9 +51,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
     currentDifficulty = widget.difficulty;
 
-    game = MemoryMatchGame(
-      difficulty: currentDifficulty,
-    );
+    game = MemoryMatchGame(difficulty: currentDifficulty);
 
     // Start game through the central engine.
     gameEngine.startGame(game);
@@ -63,8 +63,26 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     );
 
     tracker.startGame();
+
+    _startBackendSession();
   }
 
+  Future<void> _startBackendSession() async {
+    final session = await gameApiService.startGame(
+      gameId: game.gameId,
+      authToken: widget.authToken,
+    );
+
+    if (session != null) {
+      backendSessionId = session['session_id'] as String?;
+
+      debugPrint('Backend game session started: $backendSessionId');
+
+      debugPrint('Backend difficulty: ${session['difficulty']}');
+    } else {
+      debugPrint('Backend game session could not be started.');
+    }
+  }
   // ------------------------------------------------------------
   // HINT
   // ------------------------------------------------------------
@@ -122,22 +140,19 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
     _hintTimer?.cancel();
 
-    _hintTimer = Timer(
-      const Duration(milliseconds: 1200),
-      () {
-        if (!mounted) return;
+    _hintTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
 
-        for (final index in _hintCards) {
-          if (!game.cards[index].isMatched) {
-            game.cards[index].isFlipped = false;
-          }
+      for (final index in _hintCards) {
+        if (!game.cards[index].isMatched) {
+          game.cards[index].isFlipped = false;
         }
+      }
 
-        _hintCards.clear();
+      _hintCards.clear();
 
-        setState(() {});
-      },
-    );
+      setState(() {});
+    });
   }
 
   // ------------------------------------------------------------
@@ -169,12 +184,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       final firstCard = game.cards[firstIndex];
       final secondCard = game.cards[secondIndex];
 
-      final bool isCorrect =
-          firstCard.image == secondCard.image;
+      final bool isCorrect = firstCard.image == secondCard.image;
 
-      tracker.recordAttempt(
-        correct: isCorrect,
-      );
+      tracker.recordAttempt(correct: isCorrect);
 
       isProcessing = true;
     }
@@ -182,23 +194,20 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     setState(() {});
 
     if (game.secondCardIndex != null) {
-      Future.delayed(
-        const Duration(milliseconds: 900),
-        () {
-          if (!mounted) return;
+      Future.delayed(const Duration(milliseconds: 900), () {
+        if (!mounted) return;
 
-          game.hideMismatchedCards();
+        game.hideMismatchedCards();
 
-          isProcessing = false;
+        isProcessing = false;
 
-          setState(() {});
+        setState(() {});
 
-          // Check completion after pair processing.
-          if (game.isGameComplete) {
-            _showGameCompletedDialog();
-          }
-        },
-      );
+        // Check completion after pair processing.
+        if (game.isGameComplete) {
+          _showGameCompletedDialog();
+        }
+      });
     }
   }
 
@@ -215,26 +224,22 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     final GameResult result = gameAdapter.createResult(
       tracker: tracker,
       patientId: 'patient_001',
-      sessionId:
-          DateTime.now().millisecondsSinceEpoch.toString(),
+      sessionId: backendSessionId ?? '',
       completionRate: 1.0,
     );
 
     // Store result centrally.
     resultManager.addResult(result);
-
+    gameApiService.submitResult(result, authToken: widget.authToken);
     // Calculate next difficulty.
-    nextDifficulty =
-        adaptiveDifficulty.calculateNextDifficulty(
+    nextDifficulty = adaptiveDifficulty.calculateNextDifficulty(
       currentDifficulty: playedDifficulty,
       accuracy: tracker.accuracy,
       averageResponseTime: tracker.averageResponseTime,
     );
 
     debugPrint('Game Result: ${result.toJson()}');
-    debugPrint(
-      'Total games recorded: ${resultManager.totalGames}',
-    );
+    debugPrint('Total games recorded: ${resultManager.totalGames}');
 
     // Game has finished.
     gameEngine.endGame();
@@ -246,10 +251,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
         return AlertDialog(
           title: const Text(
             'Great job! 🎉',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
           ),
           content: Text(
             'You completed the game!\n\n'
@@ -260,9 +262,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
             'Hints used: ${tracker.hintsUsed}\n\n'
             'Next round difficulty: '
             '${adaptiveDifficulty.getDifficultyLabel(nextDifficulty)}',
-            style: const TextStyle(
-              fontSize: 22,
-            ),
+            style: const TextStyle(fontSize: 22),
           ),
           actions: [
             TextButton(
@@ -275,9 +275,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                 setState(() {
                   currentDifficulty = nextDifficulty;
 
-                  game = MemoryMatchGame(
-                    difficulty: currentDifficulty,
-                  );
+                  game = MemoryMatchGame(difficulty: currentDifficulty);
 
                   // Start the new game through GameEngine.
                   gameEngine.startGame(game);
@@ -290,15 +288,13 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
                   tracker.startGame();
 
+                  backendSessionId = null;
+                  _startBackendSession();
+
                   isProcessing = false;
                 });
               },
-              child: const Text(
-                'Play Again',
-                style: TextStyle(
-                  fontSize: 20,
-                ),
-              ),
+              child: const Text('Play Again', style: TextStyle(fontSize: 20)),
             ),
           ],
         );
@@ -327,10 +323,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       appBar: AppBar(
         title: const Text(
           'Memory Match',
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -342,48 +335,31 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
             Text(
               'Difficulty: '
               '${adaptiveDifficulty.getDifficultyLabel(currentDifficulty)}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 12),
 
             const Text(
               'Find the matching pairs',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 12),
 
             Text(
               'Score: ${game.score}',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 10),
 
             ElevatedButton.icon(
-              onPressed:
-                  (_hintCards.isNotEmpty || isProcessing)
-                      ? null
-                      : _useHint,
-              icon: const Icon(
-                Icons.lightbulb_outline,
-              ),
-              label: const Text(
-                'Hint',
-                style: TextStyle(
-                  fontSize: 18,
-                ),
-              ),
+              onPressed: (_hintCards.isNotEmpty || isProcessing)
+                  ? null
+                  : _useHint,
+              icon: const Icon(Icons.lightbulb_outline),
+              label: const Text('Hint', style: TextStyle(fontSize: 18)),
             ),
 
             const SizedBox(height: 20),
@@ -392,10 +368,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
               child: GridView.builder(
                 padding: const EdgeInsets.all(20),
                 itemCount: game.cards.length,
-                gridDelegate:
-                    SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount:
-                      game.cards.length <= 4 ? 2 : 4,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: game.cards.length <= 4 ? 2 : 4,
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   childAspectRatio: 1,
@@ -414,39 +388,26 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   Widget _buildCard(int index) {
     final card = game.cards[index];
 
-    final bool showContent =
-        card.isFlipped || card.isMatched;
+    final bool showContent = card.isFlipped || card.isMatched;
 
     return GestureDetector(
       onTap: () => _onCardTapped(index),
       child: AnimatedContainer(
-        duration: const Duration(
-          milliseconds: 250,
-        ),
+        duration: const Duration(milliseconds: 250),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           color: card.isMatched
               ? Colors.green.shade200
               : card.isFlipped
-                  ? Colors.white
-                  : Colors.blue.shade100,
-          border: Border.all(
-            color: Colors.blue.shade700,
-            width: 3,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 5,
-              offset: Offset(0, 3),
-            ),
-          ],
+              ? Colors.white
+              : Colors.blue.shade100,
+          border: Border.all(color: Colors.blue.shade700, width: 3),
+          boxShadow: const [BoxShadow(blurRadius: 5, offset: Offset(0, 3))],
         ),
         child: Center(
           child: Text(
             showContent ? card.image : '❓',
-            style: const TextStyle(
-              fontSize: 50,
-            ),
+            style: const TextStyle(fontSize: 50),
           ),
         ),
       ),
