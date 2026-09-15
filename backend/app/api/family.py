@@ -384,7 +384,8 @@ from app.schemas.family import (
     FamilyMemberUpdate,
     FamilyMemberResponse
 )
-from app.core.dependencies import get_authorized_patient
+# from app.core.dependencies import get_current_user
+from app.core.dependencies import get_authorized_patient, get_current_caregiver
 
 
 router = APIRouter(
@@ -657,3 +658,35 @@ def delete_family_member(
         "success": True,
         "message": "Family member removed successfully"
     }
+# ---------------------------------------------------
+# CAREGIVER GET PATIENT FAMILY MEMBERS
+# ---------------------------------------------------
+
+@router.get(
+    "/caregiver/{patient_id}",
+    response_model=list[FamilyMemberResponse]
+)
+def caregiver_get_family_members(
+    patient_id: int,
+    caregiver: FamilyMember = Depends(get_current_caregiver),
+    db: Session = Depends(get_db)
+):
+
+    # Make sure caregiver belongs to this patient
+    if caregiver.patient_id != patient_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized to view this patient's family members"
+        )
+
+    family_members = (
+        db.query(FamilyMember)
+        .filter(
+            FamilyMember.patient_id == patient_id,
+            FamilyMember.is_active == True
+        )
+        .order_by(FamilyMember.created_at.desc())
+        .all()
+    )
+
+    return family_members

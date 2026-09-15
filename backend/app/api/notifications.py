@@ -4,14 +4,23 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
+
 from app.models.notification import Notification
-from app.core.dependencies import get_current_user
+from app.models.patient import Patient
+from app.models.family_member import FamilyMember
+
+from app.core.dependencies import (
+    get_current_user,
+    get_current_caregiver
+)
+
 from app.schemas.notification import NotificationResponse
+
 from app.services.notification_service import (
     notify_patient,
     notify_caregivers
 )
-from app.models.patient import Patient
+
 
 router = APIRouter(
     prefix="/api/notifications",
@@ -19,24 +28,40 @@ router = APIRouter(
 )
 
 
-# Get all notifications of logged-in user
-@router.get("/", response_model=list[NotificationResponse])
+# =========================================================
+# GET ALL NOTIFICATIONS OF LOGGED-IN USER
+# =========================================================
+
+@router.get(
+    "/",
+    response_model=list[NotificationResponse]
+)
 def get_my_notifications(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
     notifications = (
         db.query(Notification)
-        .filter(Notification.user_id == current_user.id)
-        .order_by(Notification.created_at.desc())
+        .filter(
+            Notification.user_id == current_user.id
+        )
+        .order_by(
+            Notification.created_at.desc()
+        )
         .all()
     )
 
     return notifications
 
 
-# Get only unread notifications
-@router.get("/unread", response_model=list[NotificationResponse])
+# =========================================================
+# GET ONLY UNREAD NOTIFICATIONS
+# =========================================================
+
+@router.get(
+    "/unread",
+    response_model=list[NotificationResponse]
+)
 def get_unread_notifications(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
@@ -47,14 +72,19 @@ def get_unread_notifications(
             Notification.user_id == current_user.id,
             Notification.is_read == False
         )
-        .order_by(Notification.created_at.desc())
+        .order_by(
+            Notification.created_at.desc()
+        )
         .all()
     )
 
     return notifications
 
 
-# Get unread notification count
+# =========================================================
+# GET UNREAD NOTIFICATION COUNT
+# =========================================================
+
 @router.get("/unread-count")
 def get_unread_count(
     db: Session = Depends(get_db),
@@ -74,8 +104,13 @@ def get_unread_count(
     }
 
 
-# Mark one notification as read
-@router.put("/{notification_id}/read")
+# =========================================================
+# MARK ONE NOTIFICATION AS READ
+# =========================================================
+
+@router.put(
+    "/{notification_id}/read"
+)
 def mark_notification_read(
     notification_id: int,
     db: Session = Depends(get_db),
@@ -107,7 +142,10 @@ def mark_notification_read(
     }
 
 
-# Mark all notifications as read
+# =========================================================
+# MARK ALL NOTIFICATIONS AS READ
+# =========================================================
+
 @router.put("/read-all")
 def mark_all_notifications_read(
     db: Session = Depends(get_db),
@@ -134,6 +172,12 @@ def mark_all_notifications_read(
         "message": "All notifications marked as read.",
         "updated_count": len(notifications)
     }
+
+
+# =========================================================
+# TEST NOTIFICATION
+# =========================================================
+
 @router.post("/test")
 def test_notification(
     db: Session = Depends(get_db),
@@ -141,7 +185,9 @@ def test_notification(
 ):
     patient = (
         db.query(Patient)
-        .filter(Patient.user_id == current_user.id)
+        .filter(
+            Patient.user_id == current_user.id
+        )
         .first()
     )
 
@@ -178,3 +224,58 @@ def test_notification(
             for notification in caregiver_notifications
         ]
     }
+
+
+# =========================================================
+# CAREGIVER GET PATIENT NOTIFICATIONS
+# =========================================================
+
+@router.get(
+    "/caregiver/{patient_id}",
+    response_model=list[NotificationResponse]
+)
+def caregiver_get_notifications(
+    patient_id: int,
+    caregiver: FamilyMember = Depends(
+        get_current_caregiver
+    ),
+    db: Session = Depends(get_db)
+):
+    # Check caregiver belongs to this patient
+    if caregiver.patient_id != patient_id:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "You are not authorized to view "
+                "this patient's notifications"
+            )
+        )
+
+    # Get patient
+    patient = (
+        db.query(Patient)
+        .filter(
+            Patient.id == patient_id
+        )
+        .first()
+    )
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Patient not found"
+        )
+
+    # Get patient's notifications
+    notifications = (
+        db.query(Notification)
+        .filter(
+            Notification.user_id == patient.user_id
+        )
+        .order_by(
+            Notification.created_at.desc()
+        )
+        .all()
+    )
+
+    return notifications

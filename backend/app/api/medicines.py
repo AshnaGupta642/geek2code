@@ -10,7 +10,7 @@ from app.schemas.medicine import (
     MedicineUpdate,
     MedicineResponse
 )
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, get_current_caregiver
 
 
 router = APIRouter(
@@ -257,3 +257,34 @@ def delete_medicine(
         "success": True,
         "message": "Medicine removed successfully"
     }
+# ---------------------------------------------------
+# GET MEDICINES FOR CAREGIVER
+# ---------------------------------------------------
+
+@router.get(
+    "/caregiver/{patient_id}",
+    response_model=list[MedicineResponse]
+)
+def get_caregiver_medicines(
+    patient_id: int,
+    caregiver=Depends(get_current_caregiver),
+    db: Session = Depends(get_db)
+):
+
+    if caregiver.patient_id != patient_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not authorized for this patient"
+        )
+
+    medicines = (
+        db.query(Medicine)
+        .filter(
+            Medicine.patient_id == patient_id,
+            Medicine.is_active == True
+        )
+        .order_by(Medicine.created_at.desc())
+        .all()
+    )
+
+    return medicines
