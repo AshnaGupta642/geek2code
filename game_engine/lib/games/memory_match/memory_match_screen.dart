@@ -7,8 +7,8 @@ import '../../engine/game_engine.dart';
 import '../../engine/result_manager.dart';
 import '../../models/game_result.dart';
 import '../../services/adaptive_difficulty.dart';
-import '../../services/performance_tracker.dart';
 import '../../services/game_api_service.dart';
+import '../../services/performance_tracker.dart';
 import 'memory_match_game.dart';
 
 class MemoryMatchScreen extends StatefulWidget {
@@ -28,13 +28,14 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   final GameEngine gameEngine = GameEngine();
   final ResultManager resultManager = ResultManager();
   late GameAdapter gameAdapter;
-  // Backend integration
-  final GameApiService gameApiService = GameApiService();
-  String? backendSessionId;
 
   // Performance and adaptive difficulty
   final PerformanceTracker tracker = PerformanceTracker();
   final AdaptiveDifficulty adaptiveDifficulty = AdaptiveDifficulty();
+  final GameApiService gameApiService = GameApiService();
+
+  // Backend session
+  String? backendSessionId;
 
   int currentDifficulty = 1;
   int nextDifficulty = 1;
@@ -64,8 +65,13 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
     tracker.startGame();
 
+    // Start backend session.
     _startBackendSession();
   }
+
+  // ------------------------------------------------------------
+  // BACKEND SESSION
+  // ------------------------------------------------------------
 
   Future<void> _startBackendSession() async {
     final session = await gameApiService.startGame(
@@ -83,6 +89,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       debugPrint('Backend game session could not be started.');
     }
   }
+
   // ------------------------------------------------------------
   // HINT
   // ------------------------------------------------------------
@@ -230,7 +237,18 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
     // Store result centrally.
     resultManager.addResult(result);
-    gameApiService.submitResult(result, authToken: widget.authToken);
+
+    // Submit result to backend.
+    gameApiService.submitResult(result, authToken: widget.authToken).then((
+      success,
+    ) {
+      if (success) {
+        debugPrint('Game result submitted successfully.');
+      } else {
+        debugPrint('Failed to submit game result.');
+      }
+    });
+
     // Calculate next difficulty.
     nextDifficulty = adaptiveDifficulty.calculateNextDifficulty(
       currentDifficulty: playedDifficulty,
@@ -288,6 +306,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
                   tracker.startGame();
 
+                  // Start a new backend session.
                   backendSessionId = null;
                   _startBackendSession();
 

@@ -1,0 +1,863 @@
+/* =========================================================
+   CARECONNECT CAREGIVER DASHBOARD
+   Theme matched to Patient App UI
+   ========================================================= */
+
+:root {
+  --bg: #faf6eb;
+  --card: #fefdf9;
+  --mint: #d8eee1;
+  --yellow: #fcba42;
+  --brown: #2a1c11;
+  --green: #095c42;
+  --red: #d62828;
+  --border: #eee6d9;
+  --muted: #6d6257;
+  --soft-text: #897c6d;
+}
+
+/* =========================================================
+   RESET
+   ========================================================= */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--brown);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:focus {
+  outline: none;
+}
+
+/* =========================================================
+   APP
+   ========================================================= */
+
+.app {
+  width: 100%;
+  min-height: 100vh;
+
+  background: var(--bg);
+  color: var(--brown);
+
+  padding-bottom: 78px;
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.top-header {
+  width: 100%;
+  height: 70px;
+
+  padding: 12px 18px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: var(--bg);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  width: 42px;
+  height: 42px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: var(--mint);
+  color: var(--green);
+
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.brand h1 {
+  font-size: 17px;
+  line-height: 1.1;
+  font-weight: 800;
+
+  color: var(--brown);
+}
+
+.brand p {
+  margin-top: 3px;
+
+  font-size: 10px;
+
+  color: var(--muted);
+}
+
+.menu-btn {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  border-radius: 50%;
+
+  background: var(--mint);
+  color: var(--green);
+}
+
+/* =========================================================
+   MAIN CONTENT
+   ========================================================= */
+
+.main-content {
+  width: 100%;
+
+  padding: 14px 18px 20px;
+}
+
+/* =========================================================
+   WELCOME
+   ========================================================= */
+
+.welcome {
+  margin-bottom: 16px;
+}
+
+.small-text {
+  margin-bottom: 5px;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  color: var(--green);
+}
+
+.welcome h2 {
+  margin-bottom: 5px;
+
+  font-size: 23px;
+  line-height: 1.15;
+  font-weight: 800;
+
+  color: var(--brown);
+}
+
+.description {
+  font-size: 11px;
+  line-height: 1.4;
+
+  color: var(--muted);
+}
+
+/* =========================================================
+   LANGUAGE BOX
+   ========================================================= */
+
+.language-box {
+  width: 100%;
+
+  padding: 10px 13px;
+  margin-bottom: 14px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: var(--card);
+
+  border: 1px solid var(--border);
+  border-radius: 24px;
+
+  color: var(--brown);
+}
+
+/* =========================================================
+   PATIENT CARD
+   ========================================================= */
+
+.patient-card {
+  width: 100%;
+
+  padding: 15px;
+  margin-bottom: 15px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  background: var(--mint);
+
+  border: 1px solid #c8e3d5;
+  border-radius: 24px;
+}
+
+.patient-info {
+  min-width: 0;
+}
+
+.patient-info h3 {
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 800;
+
+  color: var(--brown);
+}
+
+.patient-info p {
+  margin-top: 4px;
+
+  font-size: 10px;
+
+  color: var(--muted);
+}
+
+.active-status {
+  display: inline-block;
+
+  margin-top: 7px;
+  padding: 5px 10px;
+
+  border-radius: 20px;
+
+  background: var(--green);
+  color: white;
+
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   STATS GRID
+   ========================================================= */
+
+.stats-grid {
+  width: 100%;
+
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 11px;
+
+  margin-bottom: 15px;
+}
+
+.stat-card {
+  min-height: 120px;
+
+  padding: 14px;
+
+  background: var(--card);
+
+  border: 1px solid var(--border);
+  border-radius: 22px;
+
+  box-shadow: 0 2px 5px rgba(42, 28, 17, 0.04);
+}
+
+.stat-icon {
+  width: 38px;
+  height: 38px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: var(--mint);
+  color: var(--green);
+}
+
+.stat-card p {
+  margin-top: 9px;
+
+  font-size: 10px;
+  font-weight: 600;
+
+  color: var(--muted);
+}
+
+.stat-card h3 {
+  margin-top: 3px;
+
+  font-size: 23px;
+  line-height: 1.1;
+  font-weight: 800;
+
+  color: var(--brown);
+}
+
+.stat-card span {
+  display: block;
+
+  margin-top: 4px;
+
+  font-size: 9px;
+  font-weight: 700;
+
+  color: var(--green);
+}
+
+/* =========================================================
+   ACTIVITY CARD
+   ========================================================= */
+
+.activity-card {
+  width: 100%;
+
+  padding: 15px;
+  margin-bottom: 15px;
+
+  background: var(--card);
+
+  border: 1px solid var(--border);
+  border-radius: 23px;
+
+  box-shadow: 0 2px 5px rgba(42, 28, 17, 0.04);
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  margin-bottom: 13px;
+}
+
+.section-title-row h3 {
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 800;
+
+  color: var(--brown);
+}
+
+.section-title-row p {
+  margin-top: 3px;
+
+  font-size: 9px;
+
+  color: var(--soft-text);
+}
+
+.growth {
+  padding: 6px 9px;
+
+  display: flex;
+  align-items: center;
+  gap: 3px;
+
+  border-radius: 20px;
+
+  background: var(--mint);
+  color: var(--green);
+
+  font-size: 9px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   CHART
+   ========================================================= */
+
+.chart {
+  position: relative;
+
+  width: 100%;
+  height: 145px;
+
+  overflow: hidden;
+
+  background: var(--bg);
+
+  border-radius: 16px;
+}
+
+.chart::before {
+  content: "";
+
+  position: absolute;
+
+  top: 15px;
+  right: 0;
+  bottom: 15px;
+  left: 0;
+
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 34px,
+    var(--border) 35px
+  );
+}
+
+.chart-line {
+  position: absolute;
+
+  left: 6%;
+  right: 6%;
+  top: 35%;
+
+  height: 45%;
+
+  border-bottom: 3px solid var(--green);
+
+  transform: skewY(-9deg);
+}
+
+.point {
+  position: absolute;
+
+  width: 10px;
+  height: 10px;
+
+  background: var(--yellow);
+
+  border: 2px solid var(--green);
+  border-radius: 50%;
+}
+
+.p1 {
+  left: 0%;
+  top: 65%;
+}
+
+.p2 {
+  left: 16%;
+  top: 52%;
+}
+
+.p3 {
+  left: 33%;
+  top: 58%;
+}
+
+.p4 {
+  left: 50%;
+  top: 38%;
+}
+
+.p5 {
+  left: 67%;
+  top: 45%;
+}
+
+.p6 {
+  left: 83%;
+  top: 25%;
+}
+
+.p7 {
+  right: 0%;
+  top: 10%;
+}
+
+.days {
+  margin-top: 9px;
+
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+
+  text-align: center;
+
+  font-size: 8px;
+  font-weight: 600;
+
+  color: var(--soft-text);
+}
+
+/* =========================================================
+   MEDICINE CARD
+   ========================================================= */
+
+.medicine-card {
+  width: 100%;
+
+  padding: 15px;
+  margin-bottom: 15px;
+
+  background: var(--card);
+
+  border: 1px solid var(--border);
+  border-radius: 23px;
+
+  box-shadow: 0 2px 5px rgba(42, 28, 17, 0.04);
+}
+
+.medicine {
+  width: 100%;
+
+  padding: 11px 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border-bottom: 1px solid var(--border);
+}
+
+.medicine:last-child {
+  border-bottom: none;
+}
+
+.medicine-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pill-icon {
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: var(--yellow);
+  color: var(--brown);
+}
+
+.medicine h4 {
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 800;
+
+  color: var(--brown);
+}
+
+.medicine p {
+  margin-top: 3px;
+
+  font-size: 9px;
+
+  color: var(--soft-text);
+}
+
+.taken {
+  padding: 5px 9px;
+
+  background: var(--mint);
+  color: var(--green);
+
+  border-radius: 20px;
+
+  font-size: 8px;
+  font-weight: 800;
+}
+
+/* =========================================================
+   QUICK ACTIONS
+   ========================================================= */
+
+.quick-heading {
+  margin: 5px 0 10px;
+}
+
+.quick-heading h3 {
+  font-size: 14px;
+  font-weight: 800;
+
+  color: var(--brown);
+}
+
+.quick-heading p {
+  margin-top: 3px;
+
+  font-size: 9px;
+
+  color: var(--soft-text);
+}
+
+.quick-actions {
+  width: 100%;
+
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 11px;
+
+  margin-bottom: 15px;
+}
+
+.quick-card {
+  min-height: 76px;
+
+  padding: 14px;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  background: var(--mint);
+  color: var(--green);
+
+  border: 1px solid #c8e3d5;
+  border-radius: 23px;
+
+  transition: transform 0.15s ease;
+}
+
+.quick-card span {
+  color: var(--brown);
+
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Yellow cards exactly like patient UI */
+
+.quick-card:nth-child(2),
+.quick-card:nth-child(4) {
+  background: var(--yellow);
+
+  border-color: #f0b43b;
+
+  color: var(--brown);
+}
+
+.quick-card:nth-child(2) span,
+.quick-card:nth-child(4) span {
+  color: var(--brown);
+}
+
+.quick-card:active {
+  transform: scale(0.97);
+}
+
+/* =========================================================
+   SOS CARD
+   ========================================================= */
+
+.sos-card {
+  width: 100%;
+
+  padding: 14px;
+  margin-bottom: 12px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  background: var(--card);
+
+  border: 2px solid #efc9c2;
+  border-radius: 23px;
+}
+
+.sos-icon {
+  width: 40px;
+  height: 40px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: var(--red);
+  color: white;
+}
+
+.sos-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.sos-info h3 {
+  font-size: 12px;
+  font-weight: 800;
+
+  color: var(--brown);
+}
+
+.sos-info p {
+  margin-top: 3px;
+
+  font-size: 9px;
+  line-height: 1.3;
+
+  color: var(--muted);
+}
+
+.view-btn {
+  flex-shrink: 0;
+
+  padding: 8px 11px;
+
+  border: none;
+  border-radius: 20px;
+
+  background: var(--red);
+  color: white;
+
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.view-btn:active {
+  transform: scale(0.96);
+}
+
+/* =========================================================
+   BOTTOM NAVIGATION
+   ========================================================= */
+
+.bottom-nav {
+  position: fixed;
+
+  left: 50%;
+  bottom: 0;
+
+  transform: translateX(-50%);
+
+  width: 100%;
+  max-width: 430px;
+  height: 70px;
+
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+
+  background: var(--card);
+
+  border-top: 1px solid var(--border);
+
+  z-index: 50;
+
+  padding-bottom: env(safe-area-inset-bottom);
+
+  box-shadow: 0 -3px 15px rgba(42, 28, 17, 0.08);
+}
+
+.nav-item {
+  height: 100%;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  gap: 4px;
+
+  border: none;
+  background: transparent;
+
+  color: var(--soft-text);
+
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.nav-item.active {
+  color: var(--green);
+  font-weight: 800;
+}
+
+.nav-item:active {
+  transform: scale(0.95);
+}
+
+/* =========================================================
+   SMALL PHONES
+   ========================================================= */
+
+@media (max-width: 360px) {
+  .main-content {
+    padding: 14px 13px 20px;
+  }
+
+  .top-header {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .welcome h2 {
+    font-size: 21px;
+  }
+
+  .stat-card {
+    min-height: 115px;
+    padding: 12px;
+  }
+
+  .stat-card h3 {
+    font-size: 21px;
+  }
+
+  .patient-card {
+    padding: 12px;
+  }
+
+  .quick-card {
+    min-height: 70px;
+    padding: 12px;
+  }
+}
+
+/* =========================================================
+   DESKTOP SCREEN
+   Keep dashboard as a PHONE
+   ========================================================= */
+
+@media (min-width: 431px) {
+  body {
+    padding: 20px 0;
+
+    background: #eee6d9;
+  }
+
+  .app {
+    width: 430px;
+    min-height: calc(100vh - 40px);
+
+    margin: 0 auto;
+
+    background: var(--bg);
+
+    border: 8px solid var(--brown);
+    border-radius: 35px;
+
+    overflow: hidden;
+
+    box-shadow:
+      0 10px 30px rgba(42, 28, 17, 0.18);
+  }
+
+  .bottom-nav {
+    bottom: 20px;
+
+    border-radius: 0 0 27px 27px;
+  }
+}

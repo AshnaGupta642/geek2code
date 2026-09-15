@@ -5,6 +5,7 @@ import '../../engine/game_engine.dart';
 import '../../engine/result_manager.dart';
 import '../../models/game_result.dart';
 import '../../services/adaptive_difficulty.dart';
+import '../../services/game_api_service.dart';
 import '../../services/performance_tracker.dart';
 import 'pattern_recognition_game.dart';
 
@@ -27,7 +28,7 @@ class _PatternRecognitionScreenState
 
   final GameEngine gameEngine = GameEngine();
   final ResultManager resultManager = ResultManager();
-
+  final GameApiService gameApiService = GameApiService();
   late GameAdapter gameAdapter;
 
   final PerformanceTracker tracker = PerformanceTracker();
@@ -102,6 +103,17 @@ class _PatternRecognitionScreenState
           DateTime.now().millisecondsSinceEpoch.toString(),
       completionRate: 1.0,
     );
+    gameApiService.submitResult(result).then((success) {
+  if (success) {
+    debugPrint(
+      'Pattern Recognition result submitted successfully.',
+    );
+  } else {
+    debugPrint(
+      'Failed to submit Pattern Recognition result.',
+    );
+  }
+});
 
     resultManager.addResult(result);
 

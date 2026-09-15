@@ -5,6 +5,7 @@ import '../../engine/game_engine.dart';
 import '../../engine/result_manager.dart';
 import '../../models/game_result.dart';
 import '../../services/adaptive_difficulty.dart';
+import '../../services/game_api_service.dart';
 import '../../services/performance_tracker.dart';
 import 'puzzle_game.dart';
 
@@ -31,6 +32,7 @@ class _PuzzleScreenState extends State<PuzzleScreen> {
   final PerformanceTracker tracker = PerformanceTracker();
   final AdaptiveDifficulty adaptiveDifficulty =
       AdaptiveDifficulty();
+  final GameApiService gameApiService = GameApiService();
 
   int currentDifficulty = 1;
   int nextDifficulty = 1;
@@ -106,6 +108,13 @@ class _PuzzleScreenState extends State<PuzzleScreen> {
           DateTime.now().millisecondsSinceEpoch.toString(),
       completionRate: game.isCorrect ? 1.0 : 0.0,
     );
+    gameApiService.submitResult(result).then((success) {
+  if (success) {
+    debugPrint('Puzzle result submitted successfully.');
+  } else {
+    debugPrint('Failed to submit Puzzle result.');
+  }
+});
 
     resultManager.addResult(result);
 

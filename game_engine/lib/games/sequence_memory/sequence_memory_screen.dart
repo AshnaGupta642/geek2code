@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../services/adaptive_difficulty.dart';
+import '../../services/game_api_service.dart';
 import '../../services/performance_tracker.dart';
 import 'sequence_memory_game.dart';
 
@@ -26,6 +27,7 @@ class _SequenceMemoryScreenState
   final PerformanceTracker tracker = PerformanceTracker();
   final AdaptiveDifficulty adaptiveDifficulty =
       AdaptiveDifficulty();
+  final GameApiService gameApiService = GameApiService();
 
   int currentDifficulty = 1;
   int nextDifficulty = 1;
@@ -109,6 +111,20 @@ class _SequenceMemoryScreenState
     final accuracy =
         (tracker.accuracy * 100).toStringAsFixed(0);
 
+    final result = tracker.createResult(
+  patientId: 'patient_001',
+  gameId: game.gameId,
+  sessionId: DateTime.now().millisecondsSinceEpoch.toString(),
+  difficulty: playedDifficulty,
+  completionRate: 1.0,
+);
+gameApiService.submitResult(result).then((success) {
+  if (success) {
+    debugPrint('Sequence Memory result submitted successfully.');
+  } else {
+    debugPrint('Failed to submit Sequence Memory result.');
+  }
+});
     showDialog(
       context: context,
       barrierDismissible: false,

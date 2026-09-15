@@ -1,0 +1,20 @@
+# --- Environment / config ---
+python-dotenv>=1.0.0
+
+# --- Google Gemini (speech-to-text, LLM, text-to-speech) ---
+# Used in: memory_vault/memory_extractor.py, voice_companion/llm_client.py,
+# voice_companion/speech_to_text.py, voice_companion/text_to_speech.py
+google-genai>=1.0.0
+
+# --- HTTP calls ---
+# Used in: voice_companion/conversation_manager.py (audio download),
+# and needed for a real Bhashini REST client (language_engine/)
+requests>=2.31.0
+
+# --- ElevenLabs (voice cloning, eleven_v3 model) ---
+# Used in: personalized_voice/
+elevenlabs>=1.0.0
+
+# --- Standard library (no install needed, listed for reference) ---
+# dataclasses, typing, re, json, logging, hashlib, pathlib, uuid, wave,
+# threading, tempfile — all built into Python 3.10+, nothing to add here.

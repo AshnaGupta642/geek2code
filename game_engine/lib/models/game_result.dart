@@ -2,19 +2,14 @@ class GameResult {
   final String patientId;
   final String gameId;
   final String sessionId;
-
   final int difficulty;
   final int score;
-
   final double accuracy;
   final double averageResponseTime;
-
   final int attempts;
   final int mistakes;
   final int hintsUsed;
-
   final double completionRate;
-
   final DateTime startedAt;
   final DateTime completedAt;
 
@@ -52,7 +47,27 @@ class GameResult {
     };
   }
 
-  Map<String, dynamic> toBackendJson({required int patientId}) {
+  factory GameResult.fromJson(Map<String, dynamic> json) {
+    return GameResult(
+      patientId: json['patient_id'],
+      gameId: json['game_id'],
+      sessionId: json['session_id'],
+      difficulty: json['difficulty'],
+      score: json['score'],
+      accuracy: json['accuracy'],
+      averageResponseTime: json['response_time_avg'],
+      attempts: json['attempts'],
+      mistakes: json['mistakes'],
+      hintsUsed: json['hints_used'],
+      completionRate: json['completion_rate'],
+      startedAt: DateTime.parse(json['started_at']),
+      completedAt: DateTime.parse(json['completed_at']),
+    );
+  }
+
+  Map<String, dynamic> toBackendJson({
+    required int patientId,
+  }) {
     return {
       'patient_id': patientId,
       'session_id': sessionId,
@@ -60,7 +75,8 @@ class GameResult {
       'score': score,
       'accuracy': accuracy * 100,
       'mistakes': mistakes,
-      'duration_seconds': completedAt.difference(startedAt).inSeconds,
+      'duration_seconds':
+          completedAt.difference(startedAt).inSeconds,
       'attempts': attempts,
       'hints_used': hintsUsed,
       'response_time': averageResponseTime,
@@ -80,23 +96,5 @@ class GameResult {
       default:
         return 'easy';
     }
-  }
-
-  factory GameResult.fromJson(Map<String, dynamic> json) {
-    return GameResult(
-      patientId: json['patient_id'],
-      gameId: json['game_id'],
-      sessionId: json['session_id'],
-      difficulty: json['difficulty'],
-      score: json['score'],
-      accuracy: json['accuracy'],
-      averageResponseTime: json['response_time_avg'],
-      attempts: json['attempts'],
-      mistakes: json['mistakes'],
-      hintsUsed: json['hints_used'],
-      completionRate: json['completion_rate'],
-      startedAt: DateTime.parse(json['started_at']),
-      completedAt: DateTime.parse(json['completed_at']),
-    );
   }
 }
