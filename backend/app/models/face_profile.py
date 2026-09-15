@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import ForeignKey, String, DateTime
+from sqlalchemy import ForeignKey, String, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
@@ -37,7 +37,7 @@ class FaceProfile(Base):
     )
 
     embedding_reference: Mapped[str | None] = mapped_column(
-        String(500),
+        Text,
         nullable=True
     )
 
