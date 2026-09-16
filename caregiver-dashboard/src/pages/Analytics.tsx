@@ -45,7 +45,7 @@ type GameTrendData = {
 };
 
 function Analytics() {
-  const patientId = 1;
+  const patientId = 4;
 
   const [performance, setPerformance] =
     useState<GamePerformanceData | null>(null);

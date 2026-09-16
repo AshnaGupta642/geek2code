@@ -24,7 +24,7 @@ type PatientOverview = {
 };
 
 function Location() {
-  const patientId = 1;
+  const patientId = 4;
 
   const [locationData, setLocationData] =
     useState<LocationData | null>(null);

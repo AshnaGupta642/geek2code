@@ -230,6 +230,7 @@ class ReconstructionEngine:
                 state.patient_id,
                 state.memory_id,
             )
+        result["_state_object"] = state
 
         return result
 

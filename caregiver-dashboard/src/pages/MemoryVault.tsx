@@ -32,7 +32,7 @@ type MemoryData = {
 };
 
 function MemoryVault() {
-  const patientId = 1;
+  const patientId = 4;
 
   const [memories, setMemories] =
     useState<MemoryData[]>([]);

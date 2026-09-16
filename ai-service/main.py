@@ -196,6 +196,69 @@ def memory_graph_generate(request: MemoryGraphRequest):
 # MemoryReconstructionService.start_session() / submit_answer()
 # ---------------------------------------------------------
 
+# @app.post("/memory-reconstruction/start")
+# def reconstruction_start(request: ReconstructionStartRequest):
+#     try:
+#         raw_memory = memory_extractor.extract_memory(request.story_text)
+#         memory = memory_normalizer.normalize_memory(raw_memory)
+#     except (ValueError, RuntimeError) as exc:
+#         raise HTTPException(status_code=502, detail=str(exc))
+
+#     state = reconstruction_engine.start_session(
+#         patient_id=str(request.patient_id), memory_id=str(request.memory_id), memory=memory
+#     )
+#     session_id = str(uuid.uuid4())
+#     _reconstruction_sessions[session_id] = {"state": state, "memory": memory}
+
+#     # question = reconstruction_engine.next_prompt(state, memory)
+#     question = reconstruction_engine.prompt_generator.generate_prompt(state, memory)
+
+#     return {
+#         "session_id": session_id,
+#         "current_stage": state.get_stage_name(),
+#         "question": question,
+#     }
+
+
+# @app.post("/memory-reconstruction/answer")
+# def reconstruction_answer(request: ReconstructionAnswerRequest):
+#     session = _reconstruction_sessions.get(request.session_id)
+#     if session is None:
+#         raise HTTPException(status_code=404, detail="Unknown or expired session_id.")
+
+#     state = session["state"]
+#     memory = session["memory"]
+
+#     analysis = reconstruction_engine.submit_answer(state, request.answer_text, memory)
+
+#     if state.is_completed():
+#         story = reconstruction_engine.build_final_story(state, memory)
+#         del _reconstruction_sessions[request.session_id]
+#         return {
+#             "session_id": request.session_id,
+#             "answer_analysis": {
+#                 "recognized": analysis["recall_detected"],
+#                 "confidence": analysis["confidence"],
+#                 "extracted_information": analysis["matched_memory"],
+#             },
+#             "next_stage": "completed",
+#             "next_question": story,
+#             "updated_context": state.get_stage_name(),
+#         }
+
+#     next_question = reconstruction_engine.next_prompt(state, memory)
+#     return {
+#         "session_id": request.session_id,
+#         "answer_analysis": {
+#             "recognized": analysis["recall_detected"],
+#             "confidence": analysis["confidence"],
+#             "extracted_information": analysis["matched_memory"],
+#         },
+#         "next_stage": state.get_stage_name(),
+#         "next_question": next_question,
+#         "updated_context": state.get_stage_name(),
+#     }
+
 @app.post("/memory-reconstruction/start")
 def reconstruction_start(request: ReconstructionStartRequest):
     try:
@@ -204,18 +267,19 @@ def reconstruction_start(request: ReconstructionStartRequest):
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
-    state = reconstruction_engine.start_session(
-        patient_id=str(request.patient_id), memory_id=str(request.memory_id)
+    result = reconstruction_engine.start_session(
+        patient_id=str(request.patient_id),
+        memory_id=str(request.memory_id),
+        memory=memory,
     )
+    state = result["_state_object"]
     session_id = str(uuid.uuid4())
     _reconstruction_sessions[session_id] = {"state": state, "memory": memory}
 
-    question = reconstruction_engine.next_prompt(state, memory)
-
     return {
         "session_id": session_id,
-        "current_stage": state.get_stage_name(),
-        "question": question,
+        "current_stage": result["stage_name"],
+        "question": result["next_prompt"],
     }
 
 
@@ -228,37 +292,25 @@ def reconstruction_answer(request: ReconstructionAnswerRequest):
     state = session["state"]
     memory = session["memory"]
 
-    analysis = reconstruction_engine.submit_answer(state, request.answer_text, memory)
+    result = reconstruction_engine.process_answer(state, request.answer_text, memory)
 
-    if state.is_completed():
-        story = reconstruction_engine.build_final_story(state, memory)
+    if result["completed"]:
         del _reconstruction_sessions[request.session_id]
         return {
             "session_id": request.session_id,
-            "answer_analysis": {
-                "recognized": analysis["recall_detected"],
-                "confidence": analysis["confidence"],
-                "extracted_information": analysis["matched_memory"],
-            },
+            "acknowledgement": result["acknowledgement"],
             "next_stage": "completed",
-            "next_question": story,
-            "updated_context": state.get_stage_name(),
+            "next_question": result["story"],
+            "updated_context": result["stage_name"],
         }
 
-    next_question = reconstruction_engine.next_prompt(state, memory)
     return {
         "session_id": request.session_id,
-        "answer_analysis": {
-            "recognized": analysis["recall_detected"],
-            "confidence": analysis["confidence"],
-            "extracted_information": analysis["matched_memory"],
-        },
-        "next_stage": state.get_stage_name(),
-        "next_question": next_question,
-        "updated_context": state.get_stage_name(),
+        "acknowledgement": result["acknowledgement"],
+        "next_stage": result["stage_name"],
+        "next_question": result["next_prompt"],
+        "updated_context": result["stage_name"],
     }
-
-
 # ---------------------------------------------------------
 # 6. Personalized Voice — maps to PersonalizedVoiceService.process_voice()
 # ---------------------------------------------------------

@@ -24,7 +24,7 @@ type PatientOverview = {
 };
 
 function Notifications() {
-  const patientId = 1;
+  const patientId = 4;
 
   const [notifications, setNotifications] = useState<
     NotificationData[]

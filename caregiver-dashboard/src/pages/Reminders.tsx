@@ -24,7 +24,7 @@ type ReminderData = {
 };
 
 function Reminders() {
-  const patientId = 1;
+  const patientId = 4;
 
   const [reminders, setReminders] =
     useState<ReminderData[]>([]);

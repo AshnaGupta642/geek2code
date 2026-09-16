@@ -149,7 +149,7 @@ type StatCardProps = {
 function Dashboard() {
   const navigate = useNavigate();
 
-  const patientId = 1;
+  const patientId = 4;
 
   const [overview, setOverview] =
     useState<PatientOverview | null>(null);

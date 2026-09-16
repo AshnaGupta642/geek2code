@@ -18,3 +18,5 @@ elevenlabs>=1.0.0
 # --- Standard library (no install needed, listed for reference) ---
 # dataclasses, typing, re, json, logging, hashlib, pathlib, uuid, wave,
 # threading, tempfile — all built into Python 3.10+, nothing to add here.
+fastapi
+uvicorn

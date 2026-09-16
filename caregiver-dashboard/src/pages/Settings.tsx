@@ -27,7 +27,7 @@ type PatientOverview = {
 };
 
 function Settings() {
-  const patientId = 1;
+  const patientId = 4;
 
   const [overview, setOverview] =
     useState<PatientOverview | null>(null);

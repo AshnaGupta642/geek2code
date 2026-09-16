@@ -139,8 +139,8 @@ class MemoryResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    # class Config:
+    #     from_attributes = True
 class PersonalMemoryVaultRequest(BaseModel):
     patient_id: int = Field(gt=0)
     memory_id: int = Field(gt=0)

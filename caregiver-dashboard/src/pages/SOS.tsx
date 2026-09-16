@@ -40,7 +40,7 @@ type PatientOverview = {
 };
 
 function SOS() {
-  const patientId = 1;
+  const patientId = 4;
 
   const [alerts, setAlerts] =
     useState<AlertData[]>([]);

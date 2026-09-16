@@ -27,7 +27,7 @@ type PatientOverview = {
 };
 
 function Medicines() {
-  const patientId = 1;
+  const patientId = 4;
 
   const [medicines, setMedicines] =
     useState<MedicineData[]>([]);

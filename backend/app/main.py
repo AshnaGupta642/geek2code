@@ -20,6 +20,7 @@ from app.models.memory_media import MemoryMedia
 
 from app.api.auth import router as auth_router
 from app.api.patients import router as patients_router, patient_router
+from app.api.family import router as family_router
 from app.api.memories import router as memories_router
 
 from app.api.medicines import router as medicines_router
@@ -42,8 +43,8 @@ from app.api.notifications import router as notifications_router
 from app.api.ai_voice import router as ai_voice_router
 from app.api.memory_reconstruction import router as memory_reconstruction_router
 from app.api.memory_graph import router as memory_graph_router
-from app.models.face_profile import FaceProfile
-from app.api.face_recognition import router as face_recognition_router
+# from app.models.face_profile import FaceProfile
+# from app.api.face_recognition import router as face_recognition_router
 from app.api.orientation import router as orientation_router
 from app.api.personal_memory import router as personal_memory_router
 from app.api.personalized_voice import router as personalized_voice_router
@@ -64,6 +65,14 @@ app.mount(
     StaticFiles(directory="uploads/audio"),
     name="audio"
 )
+app.add_middleware(
+       CORSMiddleware,
+       allow_origins=["*"],
+       allow_credentials=True,
+       allow_methods=["*"],
+       allow_headers=["*"],
+   )
+
 
 
 # API routers
@@ -72,8 +81,8 @@ app.include_router(patients_router)
 app.include_router(patient_router)
 app.include_router(memories_router)
 app.include_router(medicines_router)
-app.include_router(reminders_router)
 app.include_router(reminder_history_router)
+app.include_router(reminders_router)
 app.include_router(family_router)
 app.include_router(caregiver_router)
 app.include_router(activity_events_router)
@@ -92,7 +101,7 @@ app.include_router(notifications_router)
 app.include_router(ai_voice_router)
 app.include_router(memory_reconstruction_router)
 app.include_router(memory_graph_router)
-app.include_router(face_recognition_router)
+# app.include_router(face_recognition_router)
 app.include_router(orientation_router)
 app.include_router(personal_memory_router)
 app.include_router(personalized_voice_router)
