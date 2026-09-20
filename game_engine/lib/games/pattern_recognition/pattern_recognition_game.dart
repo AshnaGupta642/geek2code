@@ -28,9 +28,7 @@ class PatternRecognitionGame implements CognitiveGame {
   bool isCorrect = false;
   bool _isComplete = false;
 
-  PatternRecognitionGame({
-    required this.difficulty,
-  }) {
+  PatternRecognitionGame({required this.difficulty}) {
     _initializeGame();
   }
 
@@ -43,19 +41,12 @@ class PatternRecognitionGame implements CognitiveGame {
       case 3:
         return 5;
       default:
-        throw ArgumentError(
-          'Difficulty must be between 1 and 3',
-        );
+        throw ArgumentError('Difficulty must be between 1 and 3');
     }
   }
 
   void _initializeGame() {
-    final symbols = [
-      '🔴',
-      '🔵',
-      '🟢',
-      '🟡',
-    ];
+    final symbols = ['🔴', '🔵', '🟢', '🟡'];
 
     symbols.shuffle(Random());
 
@@ -65,18 +56,14 @@ class PatternRecognitionGame implements CognitiveGame {
     // Example:
     // 🔴 🔵 🔴 ?
     // Correct answer = 🔵
-    pattern = List.generate(
-      patternLength,
-      (index) {
-        return index.isEven ? first : second;
-      },
-    );
+    pattern = List.generate(patternLength, (index) {
+      return index.isEven ? first : second;
+    });
 
     // The next position is patternLength.
     // Even index -> first symbol
     // Odd index  -> second symbol
-    correctAnswer =
-        patternLength.isEven ? first : second;
+    correctAnswer = patternLength.isEven ? first : second;
 
     options = List<String>.from(symbols);
     options.shuffle(Random());

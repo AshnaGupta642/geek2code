@@ -35,8 +35,7 @@ void main() {
     test('Incorrect sequence is detected', () {
       final game = SequenceMemoryGame(difficulty: 1);
 
-      final wrongSequence =
-          List<String>.from(game.sequence.reversed);
+      final wrongSequence = List<String>.from(game.sequence.reversed);
 
       for (final item in wrongSequence) {
         game.addAnswer(item);

@@ -19,8 +19,7 @@ class SoundMemoryGame implements CognitiveGame {
   int get attempts => _isComplete ? 1 : 0;
 
   @override
-  int get mistakes =>
-      _isComplete && !isCorrect ? 1 : 0;
+  int get mistakes => _isComplete && !isCorrect ? 1 : 0;
 
   late List<int> sequence;
 
@@ -29,9 +28,7 @@ class SoundMemoryGame implements CognitiveGame {
   bool _isComplete = false;
   bool isCorrect = false;
 
-  SoundMemoryGame({
-    required this.difficulty,
-  }) {
+  SoundMemoryGame({required this.difficulty}) {
     _initializeGame();
   }
 
@@ -44,9 +41,7 @@ class SoundMemoryGame implements CognitiveGame {
       case 3:
         return 5;
       default:
-        throw ArgumentError(
-          'Difficulty must be between 1 and 3',
-        );
+        throw ArgumentError('Difficulty must be between 1 and 3');
     }
   }
 
@@ -55,9 +50,7 @@ class SoundMemoryGame implements CognitiveGame {
 
     sounds.shuffle(Random());
 
-    sequence = sounds
-        .take(sequenceLength)
-        .toList();
+    sequence = sounds.take(sequenceLength).toList();
   }
 
   void addAnswer(int sound) {

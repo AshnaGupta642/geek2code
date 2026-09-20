@@ -29,9 +29,7 @@ class PerformanceTracker {
     _responseStartTime = DateTime.now();
   }
 
-  void recordAttempt({
-    required bool correct,
-  }) {
+  void recordAttempt({required bool correct}) {
     attempts++;
 
     if (correct) {
@@ -42,8 +40,7 @@ class PerformanceTracker {
 
     if (_responseStartTime != null) {
       final responseTime =
-          DateTime.now().difference(_responseStartTime!).inMilliseconds /
-              1000;
+          DateTime.now().difference(_responseStartTime!).inMilliseconds / 1000;
 
       totalResponseTime += responseTime;
       responseCount++;

@@ -5,10 +5,7 @@ class GameAdapter {
   final String gameId;
   final int difficulty;
 
-  GameAdapter({
-    required this.gameId,
-    required this.difficulty,
-  });
+  GameAdapter({required this.gameId, required this.difficulty});
 
   GameResult createResult({
     required PerformanceTracker tracker,

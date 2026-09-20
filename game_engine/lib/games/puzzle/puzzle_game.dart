@@ -19,8 +19,7 @@ class PuzzleGame implements CognitiveGame {
   int get attempts => _isComplete ? 1 : 0;
 
   @override
-  int get mistakes =>
-      _isComplete && !isCorrect ? 1 : 0;
+  int get mistakes => _isComplete && !isCorrect ? 1 : 0;
 
   late List<String> correctOrder;
   late List<String> pieces;
@@ -28,9 +27,7 @@ class PuzzleGame implements CognitiveGame {
   bool _isComplete = false;
   bool isCorrect = false;
 
-  PuzzleGame({
-    required this.difficulty,
-  }) {
+  PuzzleGame({required this.difficulty}) {
     _initializeGame();
   }
 
@@ -43,17 +40,12 @@ class PuzzleGame implements CognitiveGame {
       case 3:
         return 9;
       default:
-        throw ArgumentError(
-          'Difficulty must be between 1 and 3',
-        );
+        throw ArgumentError('Difficulty must be between 1 and 3');
     }
   }
 
   void _initializeGame() {
-    correctOrder = List.generate(
-      pieceCount,
-      (index) => '${index + 1}',
-    );
+    correctOrder = List.generate(pieceCount, (index) => '${index + 1}');
 
     pieces = List<String>.from(correctOrder);
     pieces.shuffle(Random());

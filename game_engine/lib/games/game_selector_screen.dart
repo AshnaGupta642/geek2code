@@ -9,16 +9,8 @@ import 'sound_memory/sound_memory_screen.dart';
 class GameSelectorScreen extends StatelessWidget {
   const GameSelectorScreen({super.key});
 
-  void _openGame(
-    BuildContext context,
-    Widget game,
-  ) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => game,
-      ),
-    );
+  void _openGame(BuildContext context, Widget game) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => game));
   }
 
   @override
@@ -60,10 +52,7 @@ class GameSelectorScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'Cognitive Games',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -76,10 +65,7 @@ class GameSelectorScreen extends StatelessWidget {
             const Text(
               'Choose a game to play',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
             ),
 
             const SizedBox(height: 25),
@@ -90,10 +76,8 @@ class GameSelectorScreen extends StatelessWidget {
                 child: SizedBox(
                   height: 105,
                   child: ElevatedButton(
-                    onPressed: () => _openGame(
-                      context,
-                      game['screen'] as Widget,
-                    ),
+                    onPressed: () =>
+                        _openGame(context, game['screen'] as Widget),
                     style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
@@ -101,17 +85,12 @@ class GameSelectorScreen extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          game['icon'] as IconData,
-                          size: 48,
-                        ),
+                        Icon(game['icon'] as IconData, size: 48),
                         const SizedBox(width: 22),
                         Expanded(
                           child: Column(
-                            mainAxisAlignment:
-                                MainAxisAlignment.center,
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 game['title'] as String,
@@ -123,17 +102,12 @@ class GameSelectorScreen extends StatelessWidget {
                               const SizedBox(height: 5),
                               Text(
                                 game['subtitle'] as String,
-                                style: const TextStyle(
-                                  fontSize: 17,
-                                ),
+                                style: const TextStyle(fontSize: 17),
                               ),
                             ],
                           ),
                         ),
-                        const Icon(
-                          Icons.arrow_forward_ios,
-                          size: 25,
-                        ),
+                        const Icon(Icons.arrow_forward_ios, size: 25),
                       ],
                     ),
                   ),

@@ -25,12 +25,9 @@ class SequenceMemoryGame implements CognitiveGame {
   int get attempts => _isComplete ? 1 : 0;
 
   @override
-  int get mistakes =>
-      _isComplete && !isCorrect ? 1 : 0;
+  int get mistakes => _isComplete && !isCorrect ? 1 : 0;
 
-  SequenceMemoryGame({
-    required this.difficulty,
-  }) {
+  SequenceMemoryGame({required this.difficulty}) {
     _initializeGame();
   }
 
@@ -43,23 +40,12 @@ class SequenceMemoryGame implements CognitiveGame {
       case 3:
         return 5;
       default:
-        throw ArgumentError(
-          'Difficulty must be between 1 and 3',
-        );
+        throw ArgumentError('Difficulty must be between 1 and 3');
     }
   }
 
   void _initializeGame() {
-    final objects = [
-      '🍎',
-      '🥛',
-      '🍌',
-      '🥣',
-      '☕',
-      '🌸',
-      '🚗',
-      '🐶',
-    ];
+    final objects = ['🍎', '🥛', '🍌', '🥣', '☕', '🌸', '🚗', '🐶'];
 
     objects.shuffle(Random());
 

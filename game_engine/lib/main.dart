@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'games/game_selector_screen.dart';
 
 void main() {
@@ -13,10 +14,7 @@ class GameEngineApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Cognitive Games',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: Colors.blue,
-      ),
+      theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
       home: const GameSelectorScreen(),
     );
   }
