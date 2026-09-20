@@ -134,6 +134,8 @@ export const uploadAudio = (file, extra = {}) => {
     });
     return api.post('/audio/upload', form);
 };
+export const processAIVoice = (payload) =>
+    api.post('/ai-voice/process', payload);
 
 export const getGames = () => api.get('/games/');
 export const startGame = (payload) => api.post('/games/start', payload);

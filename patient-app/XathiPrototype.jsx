@@ -1,7 +1,7 @@
 ﻿
 
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -28,9 +28,11 @@ import {
   getReminderHistory,
   getPatientAlerts,
   saveLocation,
-  getVoiceRecordings,
+    getVoiceRecordings,
   createVoiceRecording,
   uploadAudio,
+  getPatientProfile,
+  processAIVoice,
 } from "./src/services/api";
 import usePatientOrientation from "./src/hooks/usePatientOrientation";
 import {
@@ -42,6 +44,7 @@ import {
   MessageCircle, Send, Droplet, Utensils, Footprints, Bath, Moon, Dumbbell,
   Calendar, BarChart3, Clock, AlertCircle, Sparkles
 } from "lucide-react";
+
 
 // ---------- design tokens (unchanged) ----------
 const C = {
@@ -191,7 +194,11 @@ function MicHelpBar({ onMic, onHelp, onTalk, caption = "Tap and speak" }) {
   return (
     <div className="flex flex-shrink-0 flex-col items-center gap-1.5 pb-6 pt-3">
       <div className="flex items-center gap-6">
-        <button onClick={onMic} className="flex h-20 w-20 items-center justify-center rounded-full text-white active:scale-95" style={{ background: C.green }}><Mic size={30} /></button>
+        <button onClick={() => {
+  alert("MIC BUTTON CLICKED");
+  console.log("MIC BUTTON CLICKED");
+  onMic();
+}} className="flex h-20 w-20 items-center justify-center rounded-full text-white active:scale-95" style={{ background: C.green }}><Mic size={30} /></button>
         <button onClick={onHelp} className="flex h-20 w-20 flex-col items-center justify-center gap-0.5 rounded-full text-white active:scale-95" style={{ background: C.red }}>
           <LifeBuoy size={24} /><span className="text-[11px] font-bold leading-none">{"Help"}</span>
         </button>
@@ -214,20 +221,60 @@ function StatusBar({ offline, badge }) {
   );
 }
 
-function ScreenShell({ offline, badge, backLabel, title, onBack, mic, help, talk, micCaption, children, center }) {
+function ScreenShell({
+  offline,
+  badge,
+  backLabel,
+  title,
+  onBack,
+  mic,
+  help,
+  talk,
+  micCaption,
+  center,
+  children,
+}) {
   return (
-    <div className="flex h-full flex-col" style={{ fontFamily: FONT_BODY }}>
+    <div
+      className="flex h-full flex-col"
+      style={{ fontFamily: FONT_BODY }}
+    >
       <StatusBar offline={offline} badge={badge} />
-      {onBack !== undefined && <BackHeader label={backLabel} title={title} onBack={onBack} />}
-      <div className={`flex-1 overflow-y-auto px-5 ${center ? "flex flex-col justify-center" : ""}`}>{children}</div>
-      {mic && <MicHelpBar onMic={mic} onHelp={help} onTalk={talk} micCaption={micCaption} />}
+
+      {onBack !== undefined && (
+        <BackHeader
+          label={backLabel}
+          title={title}
+          onBack={onBack}
+        />
+      )}
+
+      <div
+        className={`flex-1 overflow-y-auto px-5 ${
+          center ? "flex flex-col justify-center" : ""
+        }`}
+      >
+        {children}
+      </div>
+
+      {mic && (
+        <MicHelpBar
+          onMic={mic}
+          onHelp={help}
+          onTalk={talk}
+          caption={micCaption}
+        />
+      )}
     </div>
   );
 }
 
 function Row({ icon: Icon, label, sub, right, onClick, tone = "green" }) {
   return (
-    <button onClick={onClick} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left" style={{ background: C.card }}>
+    <button onClick={() => {
+  console.log("MICHELPBAR CLICKED");
+  onMic();
+}} className="flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left" style={{ background: C.card }}>
       {Icon && <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full" style={{ background: tone === "green" ? C.greenSoft : C.amberSoft }}><Icon size={18} style={{ color: tone === "green" ? C.green : C.amberText }} /></span>}
       <span className="flex-1">
         <span className="block font-bold" style={{ color: C.ink, fontFamily: FONT_HEAD }}>{label}</span>
@@ -1915,7 +1962,8 @@ function TalkToXathiScreen({ nav, goBack }) {
   const [text, setText] = useState("");
   const [voiceState, setVoiceState] = useState("idle");
   const [tapCount, setTapCount] = useState(0);
-
+const mediaRecorderRef = useRef(null);
+const audioChunksRef = useRef([]);
   const send = (msgText) => {
     if (!msgText.trim()) return;
     setMessages(m => [...m, { from: "user", text: msgText }]);
@@ -1928,23 +1976,89 @@ function TalkToXathiScreen({ nav, goBack }) {
     }, 600);
   };
 
-  const onMicTap = () => {
-    const next = tapCount + 1;
-    setTapCounnext;
-    setVoiceState("listening");
-    setTimeout(() => {
-      if (next % 3 === 0) {
-        setVoiceState("retry");
-      } else {
-        send("Can you tell me a story?");
+  const onMicTap = async () => {
+  console.log("MIC BUTTON CLICKED")
+  // If already recording, stop recording
+  if (
+    mediaRecorderRef.current &&
+    mediaRecorderRef.current.state === "recording"
+  ) {
+    mediaRecorderRef.current.stop();
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+    });
+
+    const recorder = new MediaRecorder(stream);
+
+    audioChunksRef.current = [];
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunksRef.current.push(event.data);
       }
-    }, 700);
-  };
+    };
+
+    recorder.onstop = async () => {
+      stream.getTracks().forEach((track) => track.stop());
+
+      const audioBlob = new Blob(audioChunksRef.current, {
+        type: "audio/webm",
+      });
+
+      console.log("Recorded audio:", audioBlob);
+
+      setVoiceState("processing");
+
+      try {
+        const audioFile = new File(
+          [audioBlob],
+          `patient_voice_${Date.now()}.webm`,
+          {
+            type: "audio/webm",
+          }
+        );
+
+        const uploadResponse = await uploadAudio(audioFile, {
+          recording_type: "AI_CONVERSATION",
+        });
+
+        console.log("Audio uploaded:", uploadResponse.data);
+
+        setVoiceState("idle");
+      } catch (error) {
+        console.error("Audio upload failed:", error);
+        setVoiceState("retry");
+      }
+    };
+
+    mediaRecorderRef.current = recorder;
+
+    recorder.start();
+
+    setVoiceState("listening");
+
+    console.log("Recording started");
+  } catch (error) {
+    console.error("Microphone permission/error:", error);
+    setVoiceState("retry");
+  }
+};
 
   const stateLabel = { listening: "Listeningâ€¦", processing: "Processingâ€¦", speaking: "Xathi is speakingâ€¦" }[voiceState];
 
   return (
-    <ScreenShell backLabel="Home" title="Talk to Xathi" onBack={goBack} mic={onMicTap} help={() => nav("help")} micCaption={stateLabel || "Tap and speak"}>
+  <ScreenShell
+    backLabel="Home"
+    title="Talk to Xathi"
+    onBack={goBack}
+    mic={onMicTap}
+    help={() => nav("help")}
+    micCaption={stateLabel || "Tap and speak"}
+  >
       <p className="mt-1 mb-3 text-sm" style={{ color: C.inkMuted }}>"{"You can talk to me anytime."}"</p>
       <div className="flex items-center justify-center py-2">
         <span className="flex h-20 w-20 items-center justify-center rounded-full" style={{ background: C.greenSoft }}>
@@ -1952,7 +2066,7 @@ function TalkToXathiScreen({ nav, goBack }) {
         </span>
       </div>
       <div className="flex flex-col gap-2.5 pb-2">
-        {messages.map((m, i) => <ChatBubble key={i} from={m.from} text={m.text} />)}
+        {messag<ScreenShelles.map((m, i) => <ChatBubble key={i} from={m.from} text={m.text} />)}
         {voiceState === "retry" && (
           <ChatBubble from="xathi" text="Sorry, I didn't catch that. Try again or tap Help." />
         )}
