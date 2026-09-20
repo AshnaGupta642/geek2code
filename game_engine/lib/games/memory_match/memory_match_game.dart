@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../../engine/cognitive_game.dart';
 import 'memory_card.dart';
+
 class MemoryMatchGame implements CognitiveGame {
   @override
   String get gameId => 'memory_match';
@@ -22,17 +23,14 @@ class MemoryMatchGame implements CognitiveGame {
 
   bool _isGameComplete = false;
 
+  @override
+  bool get isComplete => _isGameComplete;
 
-@override
-bool get isComplete => _isGameComplete;
-
-bool get isGameComplete => _isGameComplete;
+  bool get isGameComplete => _isGameComplete;
   int? firstCardIndex;
   int? secondCardIndex;
 
-  MemoryMatchGame({
-    required this.difficulty,
-  }) {
+  MemoryMatchGame({required this.difficulty}) {
     _initializeGame();
   }
 
@@ -45,47 +43,23 @@ bool get isGameComplete => _isGameComplete;
         break;
 
       case 2:
-        symbols = [
-          '🐶',
-          '🐱',
-          '🍎',
-          '🚗',
-        ];
+        symbols = ['🐶', '🐱', '🍎', '🚗'];
         break;
 
       case 3:
-        symbols = [
-          '🐶',
-          '🐱',
-          '🍎',
-          '🚗',
-          '🌸',
-          '🏠',
-        ];
+        symbols = ['🐶', '🐱', '🍎', '🚗', '🌸', '🏠'];
         break;
 
       default:
-        throw ArgumentError(
-          'Difficulty must be between 1 and 3',
-        );
+        throw ArgumentError('Difficulty must be between 1 and 3');
     }
 
     cards = [];
 
     for (int i = 0; i < symbols.length; i++) {
-      cards.add(
-        MemoryCard(
-          id: '${symbols[i]}_1',
-          image: symbols[i],
-        ),
-      );
+      cards.add(MemoryCard(id: '${symbols[i]}_1', image: symbols[i]));
 
-      cards.add(
-        MemoryCard(
-          id: '${symbols[i]}_2',
-          image: symbols[i],
-        ),
-      );
+      cards.add(MemoryCard(id: '${symbols[i]}_2', image: symbols[i]));
     }
 
     cards.shuffle(Random());
@@ -134,16 +108,14 @@ bool get isGameComplete => _isGameComplete;
   }
 
   void hideMismatchedCards() {
-    if (firstCardIndex == null ||
-        secondCardIndex == null) {
+    if (firstCardIndex == null || secondCardIndex == null) {
       return;
     }
 
     final firstCard = cards[firstCardIndex!];
     final secondCard = cards[secondCardIndex!];
 
-    if (!firstCard.isMatched &&
-        !secondCard.isMatched) {
+    if (!firstCard.isMatched && !secondCard.isMatched) {
       firstCard.isFlipped = false;
       secondCard.isFlipped = false;
     }
@@ -153,8 +125,7 @@ bool get isGameComplete => _isGameComplete;
   }
 
   void _checkGameComplete() {
-    _isGameComplete =
-        cards.every((card) => card.isMatched);
+    _isGameComplete = cards.every((card) => card.isMatched);
   }
 
   @override
@@ -171,4 +142,3 @@ bool get isGameComplete => _isGameComplete;
     _initializeGame();
   }
 }
-

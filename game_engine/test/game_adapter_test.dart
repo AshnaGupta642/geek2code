@@ -10,14 +10,9 @@ void main() {
 
     tracker.startResponseTimer();
 
-    tracker.recordAttempt(
-      correct: true,
-    );
+    tracker.recordAttempt(correct: true);
 
-    final adapter = GameAdapter(
-      gameId: 'memory_match',
-      difficulty: 1,
-    );
+    final adapter = GameAdapter(gameId: 'memory_match', difficulty: 1);
 
     final result = adapter.createResult(
       tracker: tracker,

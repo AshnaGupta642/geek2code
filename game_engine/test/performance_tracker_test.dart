@@ -66,13 +66,7 @@ void main() {
     test('calculates completion rate', () {
       final tracker = PerformanceTracker();
 
-      expect(
-        tracker.completionRate(
-          completedItems: 3,
-          totalItems: 4,
-        ),
-        0.75,
-      );
+      expect(tracker.completionRate(completedItems: 3, totalItems: 4), 0.75);
     });
 
     test('reset clears performance data', () {

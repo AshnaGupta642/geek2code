@@ -15,9 +15,7 @@ class SoundService {
     if (soundId < 0 || soundId >= sounds.length) return;
 
     await _player.stop();
-    await _player.play(
-      AssetSource(sounds[soundId]),
-    );
+    await _player.play(AssetSource(sounds[soundId]));
   }
 
   Future<void> dispose() async {

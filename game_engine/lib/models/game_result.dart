@@ -65,9 +65,7 @@ class GameResult {
     );
   }
 
-  Map<String, dynamic> toBackendJson({
-    required int patientId,
-  }) {
+  Map<String, dynamic> toBackendJson({required int patientId}) {
     return {
       'patient_id': patientId,
       'session_id': sessionId,
@@ -75,8 +73,7 @@ class GameResult {
       'score': score,
       'accuracy': accuracy * 100,
       'mistakes': mistakes,
-      'duration_seconds':
-          completedAt.difference(startedAt).inSeconds,
+      'duration_seconds': completedAt.difference(startedAt).inSeconds,
       'attempts': attempts,
       'hints_used': hintsUsed,
       'response_time': averageResponseTime,

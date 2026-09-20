@@ -336,70 +336,188 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   // UI
   // ------------------------------------------------------------
 
+  // ------------------------------------------------------------
+  // UI
+  // ------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F1E3),
       appBar: AppBar(
+        backgroundColor: const Color(0xFFF7F1E3),
+        elevation: 0,
+        toolbarHeight: 68,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 22),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'Memory Match',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF202B28),
+          ),
         ),
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final height = constraints.maxHeight;
 
-            Text(
-              'Difficulty: '
-              '${adaptiveDifficulty.getDifficultyLabel(currentDifficulty)}',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            ),
+            final horizontalPadding = width < 500 ? 20.0 : 28.0;
 
-            const SizedBox(height: 12),
-
-            const Text(
-              'Find the matching pairs',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-            ),
-
-            const SizedBox(height: 12),
-
-            Text(
-              'Score: ${game.score}',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            ElevatedButton.icon(
-              onPressed: (_hintCards.isNotEmpty || isProcessing)
-                  ? null
-                  : _useHint,
-              icon: const Icon(Icons.lightbulb_outline),
-              label: const Text('Hint', style: TextStyle(fontSize: 18)),
-            ),
-
-            const SizedBox(height: 20),
-
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.all(20),
-                itemCount: game.cards.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: game.cards.length <= 4 ? 2 : 4,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1,
-                ),
-                itemBuilder: (context, index) {
-                  return _buildCard(index);
-                },
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                12,
+                horizontalPadding,
+                24,
               ),
-            ),
-          ],
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: height - 36),
+                child: Column(
+                  children: [
+                    _buildGameHeader(),
+
+                    const SizedBox(height: 18),
+
+                    _buildHintButton(),
+
+                    const SizedBox(height: 20),
+
+                    _buildGameBoard(width),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
+      ),
+    );
+  }
+
+  Widget _buildGameHeader() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE6F0E8),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            'Difficulty: '
+            '${adaptiveDifficulty.getDifficultyLabel(currentDifficulty)}',
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF205A46),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 18),
+
+        const Text(
+          'Find the matching pairs',
+          style: TextStyle(
+            fontSize: 27,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF202B28),
+          ),
+          textAlign: TextAlign.center,
+        ),
+
+        const SizedBox(height: 8),
+
+        Text(
+          'Remember where each picture is',
+          style: TextStyle(fontSize: 17, color: Colors.grey.shade700),
+          textAlign: TextAlign.center,
+        ),
+
+        const SizedBox(height: 12),
+
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Text(
+            'Score: ${game.score}',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF202B28),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHintButton() {
+    return SizedBox(
+      width: 150,
+      height: 52,
+      child: ElevatedButton.icon(
+        onPressed: (_hintCards.isNotEmpty || isProcessing) ? null : _useHint,
+        icon: const Icon(Icons.lightbulb_outline, size: 23),
+        label: const Text(
+          'Hint',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFF9D58A),
+          foregroundColor: const Color(0xFF202B28),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGameBoard(double screenWidth) {
+    final int columns = game.cards.length <= 4 ? 2 : 3;
+
+    final double spacing = 12;
+
+    final double availableWidth = screenWidth - 40 - ((columns - 1) * spacing);
+
+    final double cardSize = (availableWidth / columns).clamp(75.0, 120.0);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: spacing,
+        runSpacing: spacing,
+        children: List.generate(game.cards.length, (index) {
+          return SizedBox(
+            width: cardSize,
+            height: cardSize,
+            child: _buildCard(index),
+          );
+        }),
       ),
     );
   }
@@ -416,17 +534,32 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
           color: card.isMatched
-              ? Colors.green.shade200
+              ? const Color(0xFFCDE8D5)
               : card.isFlipped
               ? Colors.white
-              : Colors.blue.shade100,
-          border: Border.all(color: Colors.blue.shade700, width: 3),
-          boxShadow: const [BoxShadow(blurRadius: 5, offset: Offset(0, 3))],
+              : const Color(0xFFF9D58A),
+          border: Border.all(
+            color: card.isMatched
+                ? const Color(0xFF4F8A68)
+                : const Color(0xFFE4B85F),
+            width: 2.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Center(
-          child: Text(
-            showContent ? card.image : '❓',
-            style: const TextStyle(fontSize: 50),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: Text(
+              showContent ? card.image : '❓',
+              key: ValueKey('${index}_${showContent}_${card.image}'),
+              style: const TextStyle(fontSize: 42),
+            ),
           ),
         ),
       ),

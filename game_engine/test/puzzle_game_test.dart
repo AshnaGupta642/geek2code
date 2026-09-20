@@ -24,9 +24,7 @@ void main() {
     test('Correct puzzle is detected', () {
       final game = PuzzleGame(difficulty: 1);
 
-      game.pieces = List<String>.from(
-        game.correctOrder,
-      );
+      game.pieces = List<String>.from(game.correctOrder);
 
       game.checkPuzzle();
 
@@ -37,12 +35,7 @@ void main() {
     test('Incorrect puzzle is detected', () {
       final game = PuzzleGame(difficulty: 1);
 
-      game.pieces = [
-        '2',
-        '1',
-        '3',
-        '4',
-      ];
+      game.pieces = ['2', '1', '3', '4'];
 
       game.checkPuzzle();
 

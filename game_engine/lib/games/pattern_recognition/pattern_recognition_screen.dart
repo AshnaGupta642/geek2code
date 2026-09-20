@@ -12,18 +12,14 @@ import 'pattern_recognition_game.dart';
 class PatternRecognitionScreen extends StatefulWidget {
   final int difficulty;
 
-  const PatternRecognitionScreen({
-    super.key,
-    this.difficulty = 1,
-  });
+  const PatternRecognitionScreen({super.key, this.difficulty = 1});
 
   @override
   State<PatternRecognitionScreen> createState() =>
       _PatternRecognitionScreenState();
 }
 
-class _PatternRecognitionScreenState
-    extends State<PatternRecognitionScreen> {
+class _PatternRecognitionScreenState extends State<PatternRecognitionScreen> {
   late PatternRecognitionGame game;
 
   final GameEngine gameEngine = GameEngine();
@@ -32,8 +28,7 @@ class _PatternRecognitionScreenState
   late GameAdapter gameAdapter;
 
   final PerformanceTracker tracker = PerformanceTracker();
-  final AdaptiveDifficulty adaptiveDifficulty =
-      AdaptiveDifficulty();
+  final AdaptiveDifficulty adaptiveDifficulty = AdaptiveDifficulty();
 
   int currentDifficulty = 1;
   int nextDifficulty = 1;
@@ -44,9 +39,7 @@ class _PatternRecognitionScreenState
 
     currentDifficulty = widget.difficulty;
 
-    game = PatternRecognitionGame(
-      difficulty: currentDifficulty,
-    );
+    game = PatternRecognitionGame(difficulty: currentDifficulty);
 
     gameEngine.startGame(game);
 
@@ -70,20 +63,15 @@ class _PatternRecognitionScreenState
 
     game.selectAnswer(answer);
 
-    tracker.recordAttempt(
-      correct: game.isCorrect,
-    );
+    tracker.recordAttempt(correct: game.isCorrect);
 
     setState(() {});
 
     if (game.isComplete) {
-      Future.delayed(
-        const Duration(milliseconds: 400),
-        () {
-          if (!mounted) return;
-          _showGameCompletedDialog();
-        },
-      );
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
+        _showGameCompletedDialog();
+      });
     }
   }
 
@@ -99,35 +87,26 @@ class _PatternRecognitionScreenState
     final GameResult result = gameAdapter.createResult(
       tracker: tracker,
       patientId: 'patient_001',
-      sessionId:
-          DateTime.now().millisecondsSinceEpoch.toString(),
+      sessionId: DateTime.now().millisecondsSinceEpoch.toString(),
       completionRate: 1.0,
     );
     gameApiService.submitResult(result).then((success) {
-  if (success) {
-    debugPrint(
-      'Pattern Recognition result submitted successfully.',
-    );
-  } else {
-    debugPrint(
-      'Failed to submit Pattern Recognition result.',
-    );
-  }
-});
+      if (success) {
+        debugPrint('Pattern Recognition result submitted successfully.');
+      } else {
+        debugPrint('Failed to submit Pattern Recognition result.');
+      }
+    });
 
     resultManager.addResult(result);
 
-    nextDifficulty =
-        adaptiveDifficulty.calculateNextDifficulty(
+    nextDifficulty = adaptiveDifficulty.calculateNextDifficulty(
       currentDifficulty: playedDifficulty,
       accuracy: tracker.accuracy,
-      averageResponseTime:
-          tracker.averageResponseTime,
+      averageResponseTime: tracker.averageResponseTime,
     );
 
-    debugPrint(
-      'Game Result: ${result.toJson()}',
-    );
+    debugPrint('Game Result: ${result.toJson()}');
 
     debugPrint(
       'Total games recorded: '
@@ -142,13 +121,8 @@ class _PatternRecognitionScreenState
       builder: (context) {
         return AlertDialog(
           title: Text(
-            game.isCorrect
-                ? 'Excellent! 🎉'
-                : 'Good try! 👍',
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+            game.isCorrect ? 'Excellent! 🎉' : 'Good try! 👍',
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
           ),
           content: Text(
             'Pattern completed!\n\n'
@@ -159,12 +133,8 @@ class _PatternRecognitionScreenState
             'Response time: '
             '${tracker.averageResponseTime.toStringAsFixed(1)} sec\n\n'
             'Next difficulty: '
-            '${adaptiveDifficulty.getDifficultyLabel(
-              nextDifficulty,
-            )}',
-            style: const TextStyle(
-              fontSize: 21,
-            ),
+            '${adaptiveDifficulty.getDifficultyLabel(nextDifficulty)}',
+            style: const TextStyle(fontSize: 21),
           ),
           actions: [
             TextButton(
@@ -174,9 +144,7 @@ class _PatternRecognitionScreenState
                 setState(() {
                   currentDifficulty = nextDifficulty;
 
-                  game = PatternRecognitionGame(
-                    difficulty: currentDifficulty,
-                  );
+                  game = PatternRecognitionGame(difficulty: currentDifficulty);
 
                   gameEngine.startGame(game);
 
@@ -189,12 +157,7 @@ class _PatternRecognitionScreenState
                   tracker.startResponseTimer();
                 });
               },
-              child: const Text(
-                'Next Round',
-                style: TextStyle(
-                  fontSize: 20,
-                ),
-              ),
+              child: const Text('Next Round', style: TextStyle(fontSize: 20)),
             ),
           ],
         );
@@ -215,144 +178,208 @@ class _PatternRecognitionScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F1E3),
       appBar: AppBar(
+        backgroundColor: const Color(0xFFF7F1E3),
+        elevation: 0,
+        toolbarHeight: 68,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 22),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text(
           'Pattern Recognition',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
+            color: Color(0xFF202B28),
           ),
         ),
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 18),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final height = constraints.maxHeight;
 
-            Text(
-              'Difficulty: '
-              '${adaptiveDifficulty.getDifficultyLabel(
-                currentDifficulty,
-              )}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            final horizontalPadding = width < 500 ? 20.0 : 28.0;
 
-            const SizedBox(height: 14),
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                12,
+                horizontalPadding,
+                24,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: height - 36),
+                child: Column(
+                  children: [
+                    _buildGameHeader(),
 
-            const Text(
-              'What comes next?',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+                    const SizedBox(height: 24),
 
-            const SizedBox(height: 25),
+                    _buildPattern(width),
 
-            // Pattern
-            Container(
-              margin: const EdgeInsets.symmetric(
-                horizontal: 20,
-              ),
-              padding: const EdgeInsets.symmetric(
-                vertical: 25,
-                horizontal: 15,
-              ),
-              decoration: BoxDecoration(
-                borderRadius:
-                    BorderRadius.circular(20),
-                color: Colors.blue.shade50,
-                border: Border.all(
-                  color: Colors.blue.shade700,
-                  width: 3,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.center,
-                children: [
-                  ...game.pattern.map(
-                    (symbol) => Padding(
-                      padding:
-                          const EdgeInsets.symmetric(
-                        horizontal: 8,
-                      ),
-                      child: Text(
-                        symbol,
-                        style: const TextStyle(
-                          fontSize: 48,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 8,
-                    ),
-                    child: Text(
-                      '?',
+                    const SizedBox(height: 28),
+
+                    const Text(
+                      'Choose the correct symbol',
                       style: TextStyle(
-                        fontSize: 48,
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: Color(0xFF202B28),
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                ],
-              ),
-            ),
 
-            const SizedBox(height: 35),
+                    const SizedBox(height: 16),
 
-            const Text(
-              'Choose the correct symbol',
-              style: TextStyle(
-                fontSize: 21,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            Expanded(
-              child: GridView.builder(
-                padding: const EdgeInsets.all(25),
-                itemCount: game.options.length,
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 18,
-                  mainAxisSpacing: 18,
+                    _buildOptions(width),
+                  ],
                 ),
-                itemBuilder: (context, index) {
-                  final option = game.options[index];
-
-                  return ElevatedButton(
-                    onPressed: game.isComplete
-                        ? null
-                        : () => _selectAnswer(option),
-                    style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: Text(
-                      option,
-                      style: const TextStyle(
-                        fontSize: 50,
-                      ),
-                    ),
-                  );
-                },
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGameHeader() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFE6F0E8),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            'Difficulty: '
+            '${adaptiveDifficulty.getDifficultyLabel(currentDifficulty)}',
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF205A46),
             ),
+          ),
+        ),
+
+        const SizedBox(height: 18),
+
+        const Text(
+          'What comes next?',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF202B28),
+          ),
+          textAlign: TextAlign.center,
+        ),
+
+        const SizedBox(height: 8),
+
+        const Text(
+          'Look carefully and find the missing symbol',
+          style: TextStyle(fontSize: 17, color: Color(0xFF5F625F)),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPattern(double screenWidth) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ...game.pattern.map(
+              (symbol) => _buildPatternSymbol(symbol, screenWidth),
+            ),
+
+            _buildPatternSymbol('?', screenWidth, isQuestion: true),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildPatternSymbol(
+    String symbol,
+    double screenWidth, {
+    bool isQuestion = false,
+  }) {
+    final double size = screenWidth < 400 ? 58 : 68;
+
+    return Container(
+      width: size,
+      height: size,
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      decoration: BoxDecoration(
+        color: isQuestion ? const Color(0xFFE6F0E8) : const Color(0xFFF9D58A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isQuestion ? const Color(0xFF4F8A68) : const Color(0xFFE4B85F),
+          width: 2,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          symbol,
+          style: TextStyle(
+            fontSize: isQuestion ? 36 : 34,
+            fontWeight: isQuestion ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptions(double screenWidth) {
+    final double spacing = 12;
+
+    final double buttonWidth = (screenWidth - 40 - spacing) / 2;
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: spacing,
+      runSpacing: spacing,
+      children: game.options.map((option) {
+        return SizedBox(
+          width: buttonWidth.clamp(130.0, 210.0),
+          height: 100,
+          child: ElevatedButton(
+            onPressed: game.isComplete ? null : () => _selectAnswer(option),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF9D58A),
+              foregroundColor: const Color(0xFF202B28),
+              elevation: 0,
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            child: Text(option, style: const TextStyle(fontSize: 44)),
+          ),
+        );
+      }).toList(),
     );
   }
 }

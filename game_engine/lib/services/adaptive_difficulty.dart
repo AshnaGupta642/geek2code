@@ -10,7 +10,6 @@ class AdaptiveDifficulty {
     if (accuracy >= 0.85 && averageResponseTime <= 5) {
       nextDifficulty++;
     }
-
     // Poor performance → decrease difficulty
     else if (accuracy < 0.50 || averageResponseTime > 10) {
       nextDifficulty--;

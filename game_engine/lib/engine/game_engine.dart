@@ -12,8 +12,7 @@ class GameEngine {
   }
 
   bool get isGameActive {
-    return currentGame != null &&
-        !currentGame!.isComplete;
+    return currentGame != null && !currentGame!.isComplete;
   }
 
   String? get currentGameId {

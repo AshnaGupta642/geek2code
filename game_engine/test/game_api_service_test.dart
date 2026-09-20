@@ -52,10 +52,7 @@ void main() {
       expect(payload['hints_used'], 1);
       expect(payload['response_time'], 2.5);
       expect(payload['difficulty'], 'medium');
-      expect(
-        payload['completed_at'],
-        completedAt.toIso8601String(),
-      );
+      expect(payload['completed_at'], completedAt.toIso8601String());
     });
   });
 }

@@ -34,9 +34,7 @@ void main() {
     test('adds a result', () {
       final manager = ResultManager();
 
-      manager.addResult(
-        createTestResult(0.75),
-      );
+      manager.addResult(createTestResult(0.75));
 
       expect(manager.totalGames, 1);
     });
@@ -44,9 +42,7 @@ void main() {
     test('returns latest result', () {
       final manager = ResultManager();
 
-      manager.addResult(
-        createTestResult(0.75),
-      );
+      manager.addResult(createTestResult(0.75));
 
       final result = manager.getLatestResult();
 
@@ -57,13 +53,9 @@ void main() {
     test('calculates average accuracy', () {
       final manager = ResultManager();
 
-      manager.addResult(
-        createTestResult(0.80),
-      );
+      manager.addResult(createTestResult(0.80));
 
-      manager.addResult(
-        createTestResult(0.60),
-      );
+      manager.addResult(createTestResult(0.60));
 
       expect(manager.averageAccuracy, 0.70);
     });
@@ -71,9 +63,7 @@ void main() {
     test('clears all results', () {
       final manager = ResultManager();
 
-      manager.addResult(
-        createTestResult(0.90),
-      );
+      manager.addResult(createTestResult(0.90));
 
       manager.clearResults();
 
