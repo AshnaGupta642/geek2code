@@ -22,4 +22,4 @@ AI-Based Cognitive Gaming & Personal Memory Assistance Platform for Elderly Deme
 21.🎙️ Remote Voice & Reminder Management – Caregivers can remotely create reminders, upload family voices and configure patient routines.
 22.🚨 Caregiver Alerts – Notifications for SOS, missed important routines, safe-zone exits and other configured events.
 23.📍 Location Monitoring – Current/last known location and configurable safety-zone monitoring.
-24.🔐 Personal Memory & Access Control – Caregivers can add, verify, categorize and control access to patient memories, photos and voice recordings.
+24.Personal Memory & Access Control – Caregivers can add, verify, categorize and control access to patient memories, photos and voice recordings.
